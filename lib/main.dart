@@ -23,7 +23,7 @@ class FpsRaycasterApp extends StatelessWidget {
     final game = FpsGame();
 
     return MaterialApp(
-      title: 'FPS Raycaster',
+      title: 'MemeSlayer',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
       home: Scaffold(

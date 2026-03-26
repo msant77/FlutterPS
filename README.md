@@ -1,6 +1,8 @@
 # MemeSlayer
 
-Retro first-person shooter built with Flutter + Flame for macOS. DDA raycasting engine (Wolfenstein 3D style) with procedural maze generation, enemy AI, and a path toward meme-themed chaos.
+> *Not everything in the maze deserves to die.*
+
+A retro first-person shooter built with Flutter + Flame for macOS. Wolfenstein 3D-style raycasting engine with procedural maze generation, meme-themed enemies, and a moral dilemma: shoot everything, or spare the friendlies?
 
 ## Quick Start
 
@@ -17,8 +19,33 @@ flutter run -d macos
 | Q / E | Snap turn 90° |
 | Space / Click | Shoot |
 | Shift | Sprint |
+| Trackpad | Look around |
 | M | Toggle minimap |
 | ESC | Menu |
+
+## The Meme Roster
+
+| Meme | Type | Behavior |
+|------|------|----------|
+| **Trollface** | Grunt | Medium speed, gets in your face |
+| **Doge** | Imp | Fast and chaotic, much speed |
+| **Grumpy Cat** | Brute | Slow but tanky, hits hard |
+| **Stonks Man** | Sentinel | Keeps distance, shoots from afar |
+
+NPCs come in three alignments:
+- **Hostile** (red glow) — Kill for points
+- **Friendly** (green glow) — Kill and lose 200 points
+- **Neutral** (gold glow) — Approach for free items
+
+## Features
+
+- **DDA Raycasting** — Wolfenstein 3D-style pseudo-3D rendering
+- **Procedural Everything** — Mazes, textures, sprites, and sounds all generated at runtime
+- **Pixel-Art Meme Sprites** — 64x64 faces with idle/hurt/dead frames
+- **Progressive Difficulty** — Bigger mazes, more enemies, new types each level
+- **Moral Scoring** — Heavy penalty for killing friendlies, innocence bonus for restraint
+- **Synthesized Audio** — Retro sound effects generated from sine waves and noise
+- **3 Lives System** — Health carries over between levels
 
 ## Roadmap
 
@@ -36,62 +63,51 @@ gantt
     Test suite                       :done,    tests,   2026-03-25, 2026-03-26
 
     section Meme Integration
-    Pixel-art meme sprites           :active,  sprites, 2026-03-27, 2026-04-05
-    Hostile vs friendly alignment    :         align,   2026-04-05, 2026-04-12
-    Sound effects & music            :         audio,   2026-04-10, 2026-04-18
+    Pixel-art meme sprites           :done,    sprites, 2026-03-26, 2026-03-26
+    Hostile vs friendly alignment    :done,    align,   2026-03-26, 2026-03-26
+    Sound effects                    :done,    audio,   2026-03-26, 2026-03-26
 
     section Progression
-    Multi-level & difficulty scaling :         levels,  2026-04-15, 2026-04-25
-    Scoring & leaderboard            :         score,   2026-04-20, 2026-04-28
-    Rebrand to MemeSlayer            :         brand,   2026-04-25, 2026-05-05
+    Multi-level system               :done,    levels,  2026-03-26, 2026-03-26
+    Rebrand to MemeSlayer            :done,    brand,   2026-03-26, 2026-03-26
 ```
-
-### Phase Breakdown
-
-**Phase 1 — Foundation** (Done)
-- DDA raycasting with textured walls and fog
-- Procedural maze generation (recursive backtracker + room carving)
-- 4 enemy types with state-machine AI (grunt, imp, brute, sentinel)
-- Line-of-sight detection, hitscan combat, pickups
-- Win/lose conditions, HUD, main menu, endgame stats
-- 33 unit tests covering core systems
-
-**Phase 2 — Meme Integration** (Next)
-- Issue #3: Replace geometric enemies with pixel-art meme sprites
-- Issue #4: Friendly vs hostile NPCs (some memes help, some attack)
-- Issue #5: Sound effects and background music
-
-**Phase 3 — Progression**
-- Issue #6: Multi-level progression with scaling difficulty
-- Scoring system with meme-specific point values
-- Issue #7: Full rebrand — MemeSlayer identity, splash screen, polish
 
 ## Architecture
 
 ```
 lib/
-├── main.dart              # App entry, GameWidget + Listener for input
-├── game/fps_game.dart     # FlameGame — game loop, state, rendering
+├── main.dart                  # App entry, GameWidget + Listener for input
+├── game/fps_game.dart         # FlameGame — game loop, state, level progression
 ├── engine/
-│   ├── raycaster.dart     # DDA raycasting algorithm
-│   ├── renderer.dart      # Canvas rendering (walls, enemies, minimap)
-│   └── textures.dart      # Procedural texture generation
+│   ├── raycaster.dart         # DDA raycasting algorithm
+│   ├── renderer.dart          # Canvas rendering (walls, enemies, minimap)
+│   ├── textures.dart          # Procedural wall texture generation
+│   ├── sprites.dart           # Procedural pixel-art meme sprites
+│   └── audio.dart             # Synthesized retro sound effects
 ├── entities/
-│   ├── player.dart        # Movement, collision, shooting
-│   └── enemy.dart         # AI state machine (idle/chase/attack/dead)
+│   ├── player.dart            # Movement, collision, shooting
+│   └── enemy.dart             # AI state machine with alignment system
 ├── world/
-│   ├── game_map.dart      # 2D tile grid, spawn points
-│   └── maze_generator.dart # Recursive backtracker maze gen
+│   ├── game_map.dart          # 2D tile grid, spawn points
+│   └── maze_generator.dart    # Recursive backtracker maze generation
 └── ui/
-    ├── hud_overlay.dart
-    ├── main_menu_overlay.dart
-    └── endgame_overlay.dart
+    ├── hud_overlay.dart       # Health, ammo, score, level, lives
+    ├── main_menu_overlay.dart # MemeSlayer title screen
+    ├── level_splash_overlay.dart # Between-level transition
+    └── endgame_overlay.dart   # Win/lose/game over stats
 ```
 
 ## Development
 
 ```sh
-flutter analyze    # Lint
-flutter test       # Run tests
+flutter analyze    # Lint (0 issues)
+flutter test       # 38 tests
 flutter run -d macos
 ```
+
+## Tech Stack
+
+- **Flutter** — UI framework and Canvas API
+- **Flame** — Game loop and keyboard input
+- **audioplayers** — WAV playback from synthesized bytes
+- **Zero external assets** — Everything procedurally generated
