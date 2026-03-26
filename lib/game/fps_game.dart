@@ -265,6 +265,14 @@ class FpsGame extends FlameGame with KeyboardEvents {
         _keysPressed.contains(LogicalKeyboardKey.arrowDown);
     audio.updateFootsteps(dt, isMoving);
 
+    // Ambient enemy sounds (spatial)
+    final ambientSources = enemies
+        .where((e) => e.isAlive && e.alignment == EnemyAlignment.hostile)
+        .map((e) => SpatialSource(e.position, e.type))
+        .toList();
+    audio.updateAmbientEnemySounds(
+        dt, ambientSources, player.position, player.angle);
+
     // Check death
     if (player.isDead) {
       audio.playDeath();
@@ -411,14 +419,20 @@ class FpsGame extends FlameGame with KeyboardEvents {
         if (enemy.isDead) {
           player.kills++;
           score += enemy.scoreValue;
-          audio.playEnemyDeath(enemy.type, enemy.alignment);
+          audio.playEnemyDeath(enemy.type, enemy.alignment,
+              enemyPos: enemy.position,
+              playerPos: player.position,
+              playerAngle: player.angle);
           if (enemy.alignment == EnemyAlignment.hostile) {
             hostileKills++;
           } else {
             friendlyKills++;
           }
         } else {
-          audio.playEnemyHurt(enemy.type);
+          audio.playEnemyHurt(enemy.type,
+              enemyPos: enemy.position,
+              playerPos: player.position,
+              playerAngle: player.angle);
           // Trickster teleports when hit
           if (enemy.type == EnemyType.trickster) {
             enemy.tryTeleport(gameMap);

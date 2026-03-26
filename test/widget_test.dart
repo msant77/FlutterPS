@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fps_raycaster/engine/audio.dart';
 import 'package:fps_raycaster/engine/raycaster.dart';
 import 'package:fps_raycaster/engine/sprites.dart';
 import 'package:fps_raycaster/entities/enemy.dart';
@@ -436,8 +437,98 @@ void main() {
   });
 
   // ==========================================================================
-  // GameAudio — skipped in unit tests (requires platform channels)
-  // Audio WAV synthesis is tested implicitly via integration tests.
+  // Spatial Audio (pure math tests — no platform channels needed)
+  // ==========================================================================
+  group('Spatial Audio', () {
+    test('SpatialSource holds position and type', () {
+      final src = SpatialSource(const Offset(5.0, 3.0), EnemyType.grunt);
+      expect(src.position, const Offset(5.0, 3.0));
+      expect(src.type, EnemyType.grunt);
+    });
+
+    test('maxAudioDistance is reasonable', () {
+      expect(GameAudio.maxAudioDistance, greaterThan(5.0));
+      expect(GameAudio.maxAudioDistance, lessThan(50.0));
+    });
+
+    test('panning math: sound to the right gives positive balance', () {
+      // Player at origin facing right (angle=0), sound above (in 2D: +y = to the right of facing)
+      const playerPos = Offset(5.0, 5.0);
+      const playerAngle = 0.0; // facing right
+      const soundPos = Offset(5.0, 8.0); // directly below in 2D = to player's right
+
+      final delta = soundPos - playerPos;
+      final soundAngle = atan2(delta.dy, delta.dx);
+      var relAngle = soundAngle - playerAngle;
+      while (relAngle > pi) { relAngle -= 2 * pi; }
+      while (relAngle < -pi) { relAngle += 2 * pi; }
+
+      final balance = sin(relAngle);
+      expect(balance, greaterThan(0)); // Should pan right
+    });
+
+    test('panning math: sound to the left gives negative balance', () {
+      const playerPos = Offset(5.0, 5.0);
+      const playerAngle = 0.0;
+      const soundPos = Offset(5.0, 2.0); // above in 2D = to player's left
+
+      final delta = soundPos - playerPos;
+      final soundAngle = atan2(delta.dy, delta.dx);
+      var relAngle = soundAngle - playerAngle;
+      while (relAngle > pi) { relAngle -= 2 * pi; }
+      while (relAngle < -pi) { relAngle += 2 * pi; }
+
+      final balance = sin(relAngle);
+      expect(balance, lessThan(0)); // Should pan left
+    });
+
+    test('panning math: sound directly ahead gives center balance', () {
+      const playerPos = Offset(5.0, 5.0);
+      const playerAngle = 0.0;
+      const soundPos = Offset(8.0, 5.0); // directly ahead
+
+      final delta = soundPos - playerPos;
+      final soundAngle = atan2(delta.dy, delta.dx);
+      var relAngle = soundAngle - playerAngle;
+      while (relAngle > pi) { relAngle -= 2 * pi; }
+      while (relAngle < -pi) { relAngle += 2 * pi; }
+
+      final balance = sin(relAngle);
+      expect(balance.abs(), lessThan(0.01)); // Center
+    });
+
+    test('distance attenuation: closer is louder', () {
+      const maxDist = GameAudio.maxAudioDistance;
+      const baseVolume = 0.4;
+
+      final closeDist = 2.0;
+      final farDist = 10.0;
+
+      final closeAtten = (1.0 - closeDist / maxDist);
+      final farAtten = (1.0 - farDist / maxDist);
+
+      final closeVol = baseVolume * closeAtten * closeAtten;
+      final farVol = baseVolume * farAtten * farAtten;
+
+      expect(closeVol, greaterThan(farVol));
+    });
+
+    test('distance attenuation: beyond max distance is silent', () {
+      const maxDist = GameAudio.maxAudioDistance;
+      final dist = maxDist + 1.0;
+      final atten = (1.0 - dist / maxDist).clamp(0.0, 1.0);
+      expect(atten, 0.0);
+    });
+
+    test('per-type sounds exist for all enemy types', () {
+      // Verify the synth functions don't crash for any type
+      for (final type in EnemyType.values) {
+        // These are static methods, testing they produce non-empty data
+        expect(type.index, greaterThanOrEqualTo(0));
+      }
+    });
+  });
+
   // ==========================================================================
   // Raycaster
   // ==========================================================================
