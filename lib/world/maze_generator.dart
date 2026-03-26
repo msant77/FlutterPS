@@ -91,6 +91,14 @@ class MazeGenerator {
       EnemyType.sentinel,
     ];
 
+    // Alignment distribution: ~60% hostile, ~25% friendly, ~15% neutral
+    EnemyAlignment pickAlignment(int index) {
+      final roll = _rng.nextDouble();
+      if (roll < 0.6) return EnemyAlignment.hostile;
+      if (roll < 0.85) return EnemyAlignment.friendly;
+      return EnemyAlignment.neutral;
+    }
+
     // Filter tiles that are far enough from spawn
     final spawnDist = (gridW + gridH) * 0.15;
     final enemyCandidates = openTiles.where((p) {
@@ -104,9 +112,11 @@ class MazeGenerator {
       final tile = enemyCandidates.removeAt(idx);
       openTiles.remove(tile);
       final type = enemyTypes[i % enemyTypes.length];
+      final alignment = pickAlignment(i);
       spawns.add(EnemySpawnPoint(
         Offset(tile.x + 0.5, tile.y + 0.5),
         type,
+        alignment,
       ));
     }
 

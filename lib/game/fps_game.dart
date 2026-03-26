@@ -52,6 +52,8 @@ class FpsGame extends FlameGame with KeyboardEvents {
   // Score & win state
   int score = 0;
   bool didWin = false;
+  int hostileKills = 0;
+  int friendlyKills = 0;
 
   bool get isRunning => _isRunning;
   bool get showMinimap => _showMinimap;
@@ -72,8 +74,10 @@ class FpsGame extends FlameGame with KeyboardEvents {
     gameMap = generator.generate();
     player = Player(position: gameMap.playerSpawn);
     enemies = gameMap.enemySpawns
-        .map((s) => Enemy.spawn(s.position, s.type))
+        .map((s) => Enemy.spawn(s.position, s.type, alignment: s.alignment))
         .toList();
+    hostileKills = 0;
+    friendlyKills = 0;
     score = 0;
     didWin = false;
     _time = 0;
@@ -130,6 +134,23 @@ class FpsGame extends FlameGame with KeyboardEvents {
       }
     }
 
+    // Neutral NPC interaction: give items when player is close
+    for (final enemy in enemies) {
+      if (enemy.isDead || enemy.alignment != EnemyAlignment.neutral) continue;
+      if (enemy.hasGivenItem) continue;
+      final dist = enemy.distanceTo(player.position);
+      if (dist < 1.5) {
+        enemy.hasGivenItem = true;
+        // Stonks man gives ammo, others give health
+        if (enemy.type == EnemyType.sentinel) {
+          player.addAmmo(10);
+        } else {
+          player.heal(15);
+        }
+        score += 25; // Small bonus for interacting instead of killing
+      }
+    }
+
     // Damage flash decay
     if (_damageFlash > 0) {
       _damageFlash -= dt;
@@ -160,8 +181,12 @@ class FpsGame extends FlameGame with KeyboardEvents {
       final dx = (player.position.dx - gameMap.exitPosition!.dx).abs();
       final dy = (player.position.dy - gameMap.exitPosition!.dy).abs();
       if (dx < 0.6 && dy < 0.6) {
-        // Bonus points for remaining health and enemies killed
+        // Bonus points for remaining health
         score += player.health.round() * 2;
+        // Innocence bonus: no friendly kills
+        if (friendlyKills == 0) {
+          score += 300;
+        }
         _endGame(won: true);
         return;
       }
@@ -280,7 +305,12 @@ class FpsGame extends FlameGame with KeyboardEvents {
         enemy.takeDamage(25);
         if (enemy.isDead) {
           player.kills++;
-          score += 100;
+          score += enemy.scoreValue;
+          if (enemy.alignment == EnemyAlignment.hostile) {
+            hostileKills++;
+          } else {
+            friendlyKills++;
+          }
         }
         break; // Hit one enemy per shot
       }
@@ -624,6 +654,25 @@ class FpsGame extends FlameGame with KeyboardEvents {
     if (!visible) return;
 
     final fogFactor = (1.0 - dist / Raycaster.maxRayDistance).clamp(0.0, 1.0);
+
+    // Alignment glow: green for friendly, red for hostile, gold for neutral
+    if (dist < 12) {
+      final glowColor = switch (enemy.alignment) {
+        EnemyAlignment.friendly => Colors.greenAccent
+            .withValues(alpha: 0.15 * fogFactor),
+        EnemyAlignment.neutral => Colors.amber
+            .withValues(alpha: 0.15 * fogFactor),
+        EnemyAlignment.hostile => Colors.redAccent
+            .withValues(alpha: 0.1 * fogFactor),
+      };
+      canvas.drawCircle(
+        Offset(screenX, screenY + spriteHeight * 0.5),
+        spriteWidth * 0.7,
+        Paint()
+          ..color = glowColor
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+      );
+    }
 
     Renderer.drawEnemy(
       canvas: canvas,

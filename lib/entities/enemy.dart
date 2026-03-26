@@ -6,6 +6,18 @@ import '../world/game_map.dart';
 
 enum EnemyState { idle, chasing, attacking, hurt, dead }
 
+/// Alignment determines AI behavior and scoring.
+enum EnemyAlignment {
+  /// Chases and attacks the player.
+  hostile,
+
+  /// Wanders peacefully, never attacks. Killing penalizes score.
+  friendly,
+
+  /// Stationary, gives items on approach.
+  neutral,
+}
+
 enum EnemyType {
   /// Basic grunt — medium speed, medium health, melee.
   grunt,
@@ -42,6 +54,12 @@ class Enemy {
   // Sentinel specific: preferred distance from player
   double preferredRange;
 
+  /// Alignment: hostile, friendly, or neutral.
+  EnemyAlignment alignment;
+
+  /// Whether this neutral NPC has already given its item.
+  bool hasGivenItem;
+
   static const double collisionRadius = 0.3;
   static const double hitRadius = 0.4;
 
@@ -56,15 +74,40 @@ class Enemy {
     required this.attackCooldown,
     required this.detectionRange,
     required this.preferredRange,
+    this.alignment = EnemyAlignment.hostile,
   })  : _attackTimer = 0,
+        hasGivenItem = false,
         state = EnemyState.idle,
         angle = 0,
         hurtTimer = 0,
         _idleWanderAngle = Random().nextDouble() * pi * 2,
         _wanderTimer = 0;
 
+  /// Score value when killed. Positive for hostiles, negative for friendlies.
+  int get scoreValue {
+    if (alignment == EnemyAlignment.friendly) {
+      // Heavy penalty for killing friendlies
+      return -200;
+    }
+    if (alignment == EnemyAlignment.neutral) {
+      return -150;
+    }
+    // Hostile: points scale with difficulty
+    switch (type) {
+      case EnemyType.grunt:
+        return 100;
+      case EnemyType.imp:
+        return 75;
+      case EnemyType.brute:
+        return 200;
+      case EnemyType.sentinel:
+        return 150;
+    }
+  }
+
   /// Spawn the right enemy type at a position.
-  factory Enemy.spawn(Offset position, EnemyType type) {
+  factory Enemy.spawn(Offset position, EnemyType type,
+      {EnemyAlignment alignment = EnemyAlignment.hostile}) {
     switch (type) {
       case EnemyType.grunt:
         return Enemy._(
@@ -78,6 +121,7 @@ class Enemy {
           attackCooldown: 1.0,
           detectionRange: 10.0,
           preferredRange: 0,
+          alignment: alignment,
         );
       case EnemyType.imp:
         return Enemy._(
@@ -91,6 +135,7 @@ class Enemy {
           attackCooldown: 0.5,
           detectionRange: 12.0,
           preferredRange: 0,
+          alignment: alignment,
         );
       case EnemyType.brute:
         return Enemy._(
@@ -104,6 +149,7 @@ class Enemy {
           attackCooldown: 1.8,
           detectionRange: 8.0,
           preferredRange: 0,
+          alignment: alignment,
         );
       case EnemyType.sentinel:
         return Enemy._(
@@ -117,6 +163,7 @@ class Enemy {
           attackCooldown: 1.5,
           detectionRange: 15.0,
           preferredRange: 5.0,
+          alignment: alignment,
         );
     }
   }
@@ -143,9 +190,24 @@ class Enemy {
     if (state == EnemyState.hurt) {
       hurtTimer -= dt;
       if (hurtTimer <= 0) {
-        state = EnemyState.chasing; // Always aggro after being hit
+        // Friendly/neutral stay idle after being hit, hostile aggro
+        state = alignment == EnemyAlignment.hostile
+            ? EnemyState.chasing
+            : EnemyState.idle;
       }
       return; // Stunned briefly when hurt
+    }
+
+    // Neutral NPCs are stationary
+    if (alignment == EnemyAlignment.neutral) {
+      state = EnemyState.idle;
+      return;
+    }
+
+    // Friendly NPCs just wander, never attack
+    if (alignment == EnemyAlignment.friendly) {
+      _wander(dt, map);
+      return;
     }
 
     final toPlayer = playerPos - position;

@@ -12,7 +12,11 @@ class EndgameOverlay extends StatelessWidget {
     final won = game.didWin;
     final title = won ? 'LEVEL CLEAR' : 'YOU DIED';
     final titleColor = won ? Colors.greenAccent : Colors.redAccent;
-    final subtitle = won ? 'All hostiles eliminated' : 'Better luck next time';
+    final subtitle = won
+        ? (game.friendlyKills == 0
+            ? 'Escaped with clean hands!'
+            : 'Escaped... but at what cost?')
+        : 'Better luck next time';
 
     return Container(
       color: Colors.black.withValues(alpha: 0.75),
@@ -50,7 +54,14 @@ class EndgameOverlay extends StatelessWidget {
               child: Column(
                 children: [
                   _statRow('SCORE', '${game.score}'),
-                  _statRow('KILLS', '${game.player.kills}'),
+                  _statRow('HOSTILES', '${game.hostileKills}',
+                      color: Colors.redAccent),
+                  if (game.friendlyKills > 0)
+                    _statRow('INNOCENTS KILLED', '${game.friendlyKills}',
+                        color: Colors.red),
+                  if (game.friendlyKills == 0 && won)
+                    _statRow('INNOCENCE', 'PERFECT',
+                        color: Colors.greenAccent),
                   _statRow('HEALTH', '${game.player.health.round()}%'),
                   _statRow('AMMO LEFT', '${game.player.ammo}'),
                 ],
@@ -73,7 +84,7 @@ class EndgameOverlay extends StatelessWidget {
     );
   }
 
-  Widget _statRow(String label, String value) {
+  Widget _statRow(String labelText, String value, {Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -82,7 +93,7 @@ class EndgameOverlay extends StatelessWidget {
           SizedBox(
             width: 120,
             child: Text(
-              label,
+              labelText,
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: Colors.grey.shade500,
@@ -96,8 +107,8 @@ class EndgameOverlay extends StatelessWidget {
             width: 80,
             child: Text(
               value,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: color ?? Colors.white,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Courier',

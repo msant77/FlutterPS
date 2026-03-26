@@ -15,12 +15,14 @@ enum Tile {
   exit,
 }
 
-/// Spawn point with position and enemy type.
+/// Spawn point with position, enemy type, and alignment.
 class EnemySpawnPoint {
   final Offset position;
   final EnemyType type;
+  final EnemyAlignment alignment;
 
-  const EnemySpawnPoint(this.position, this.type);
+  const EnemySpawnPoint(this.position, this.type,
+      [this.alignment = EnemyAlignment.hostile]);
 }
 
 /// The game world defined as a 2D grid.

@@ -368,6 +368,9 @@ class Renderer {
 
   static Color _minimapEnemyColor(Enemy enemy) {
     if (enemy.state == EnemyState.attacking) return Colors.red;
+    // Alignment-based coloring
+    if (enemy.alignment == EnemyAlignment.friendly) return Colors.greenAccent;
+    if (enemy.alignment == EnemyAlignment.neutral) return Colors.amber;
     switch (enemy.type) {
       case EnemyType.grunt:
         return const Color(0xFFCC3333);

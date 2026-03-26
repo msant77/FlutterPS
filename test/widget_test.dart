@@ -215,6 +215,44 @@ void main() {
       expect(e.state, EnemyState.idle);
     });
 
+    test('friendly enemy never attacks', () {
+      final map = _testMap();
+      final friendly = Enemy.spawn(const Offset(3.5, 3.5), EnemyType.grunt,
+          alignment: EnemyAlignment.friendly);
+      final playerPos = const Offset(3.5, 4.0); // Very close
+
+      // Update several times — should stay idle, never attack
+      for (int i = 0; i < 20; i++) {
+        friendly.update(0.1, playerPos, map);
+      }
+      expect(friendly.state, isNot(EnemyState.attacking));
+      expect(friendly.state, isNot(EnemyState.chasing));
+    });
+
+    test('neutral enemy is stationary', () {
+      final map = _testMap();
+      final neutral = Enemy.spawn(const Offset(3.5, 3.5), EnemyType.sentinel,
+          alignment: EnemyAlignment.neutral);
+      final startPos = neutral.position;
+
+      neutral.update(0.1, const Offset(3.5, 4.0), map);
+      expect(neutral.position, equals(startPos));
+      expect(neutral.state, EnemyState.idle);
+    });
+
+    test('hostile enemy score is positive, friendly is negative', () {
+      final hostile = Enemy.spawn(const Offset(1, 1), EnemyType.grunt,
+          alignment: EnemyAlignment.hostile);
+      final friendly = Enemy.spawn(const Offset(1, 1), EnemyType.grunt,
+          alignment: EnemyAlignment.friendly);
+      final neutral = Enemy.spawn(const Offset(1, 1), EnemyType.grunt,
+          alignment: EnemyAlignment.neutral);
+
+      expect(hostile.scoreValue, greaterThan(0));
+      expect(friendly.scoreValue, lessThan(0));
+      expect(neutral.scoreValue, lessThan(0));
+    });
+
     test('distanceTo calculates correctly', () {
       final e = Enemy.spawn(const Offset(0, 0), EnemyType.grunt);
       expect(e.distanceTo(const Offset(3, 4)), closeTo(5.0, 0.01));
