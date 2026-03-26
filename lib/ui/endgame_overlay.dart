@@ -10,13 +10,16 @@ class EndgameOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final won = game.didWin;
-    final title = won ? 'LEVEL CLEAR' : 'YOU DIED';
+    final gameOver = !won && game.lives <= 0;
+    final title = gameOver ? 'GAME OVER' : (won ? 'LEVEL CLEAR' : 'YOU DIED');
     final titleColor = won ? Colors.greenAccent : Colors.redAccent;
-    final subtitle = won
-        ? (game.friendlyKills == 0
-            ? 'Escaped with clean hands!'
-            : 'Escaped... but at what cost?')
-        : 'Better luck next time';
+    final subtitle = gameOver
+        ? 'Reached Level ${game.level} — Final Score: ${game.score}'
+        : won
+            ? (game.friendlyKills == 0
+                ? 'Escaped with clean hands!'
+                : 'Escaped... but at what cost?')
+            : 'Lives remaining: ${game.lives}';
 
     return Container(
       color: Colors.black.withValues(alpha: 0.75),
@@ -68,11 +71,31 @@ class EndgameOverlay extends StatelessWidget {
               ),
             ),
 
+            // Show level info
+            if (!gameOver)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Level ${game.level}',
+                  style: TextStyle(
+                    color: Colors.amber,
+                    fontSize: 16,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ),
+
             const SizedBox(height: 40),
-            _EndgameButton(
-              label: won ? 'PLAY AGAIN' : 'RETRY',
-              onPressed: () => game.startGame(),
-            ),
+            if (!gameOver && !won && game.lives > 0)
+              _EndgameButton(
+                label: 'RETRY LEVEL',
+                onPressed: () => game.retryLevel(),
+              ),
+            if (gameOver || won)
+              _EndgameButton(
+                label: gameOver ? 'NEW GAME' : 'PLAY AGAIN',
+                onPressed: () => game.startGame(),
+              ),
             const SizedBox(height: 12),
             _EndgameButton(
               label: 'MAIN MENU',

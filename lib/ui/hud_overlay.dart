@@ -138,6 +138,24 @@ class HudOverlay extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
+            'LVL ${game.level}',
+            style: TextStyle(
+              color: Colors.amber,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '♥' * game.lives,
+            style: const TextStyle(
+              color: Colors.redAccent,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
             'SCORE',
             style: TextStyle(
               color: Colors.grey.shade500,

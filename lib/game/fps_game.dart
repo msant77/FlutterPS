@@ -57,6 +57,10 @@ class FpsGame extends FlameGame with KeyboardEvents {
   int hostileKills = 0;
   int friendlyKills = 0;
 
+  // Level progression
+  int level = 1;
+  int lives = 3;
+
   bool get isRunning => _isRunning;
   bool get showMinimap => _showMinimap;
 
@@ -64,26 +68,77 @@ class FpsGame extends FlameGame with KeyboardEvents {
   double _time = 0;
   double get time => _time;
 
-  Future<void> startGame() async {
-    if (!textures.isReady) {
-      await textures.generate();
-    }
-    if (!sprites.isReady) {
-      await sprites.generate();
-    }
-    if (!audio.isReady) {
-      await audio.generate();
-    }
+  /// Get the maze difficulty for the current level.
+  MazeDifficulty _difficultyForLevel() {
+    if (level <= 2) return MazeDifficulty.small;
+    if (level <= 4) return MazeDifficulty.medium;
+    return MazeDifficulty.large;
+  }
 
-    final generator = MazeGenerator(difficulty: MazeDifficulty.medium);
-    gameMap = generator.generate();
-    player = Player(position: gameMap.playerSpawn);
-    enemies = gameMap.enemySpawns
-        .map((s) => Enemy.spawn(s.position, s.type, alignment: s.alignment))
-        .toList();
+  /// Filter enemy types available at the current level.
+  List<EnemyType> _enemyTypesForLevel() {
+    switch (level) {
+      case 1:
+        return [EnemyType.grunt]; // Learn the basics
+      case 2:
+        return [EnemyType.grunt, EnemyType.imp]; // Add speed
+      case 3:
+        return [EnemyType.grunt, EnemyType.imp, EnemyType.sentinel]; // Add ranged
+      default:
+        return EnemyType.values.toList(); // Everything including brutes
+    }
+  }
+
+  Future<void> _ensureAssetsReady() async {
+    if (!textures.isReady) await textures.generate();
+    if (!sprites.isReady) await sprites.generate();
+    if (!audio.isReady) await audio.generate();
+  }
+
+  /// Start a fresh game from level 1.
+  Future<void> startGame() async {
+    await _ensureAssetsReady();
+    level = 1;
+    lives = 3;
+    score = 0;
     hostileKills = 0;
     friendlyKills = 0;
-    score = 0;
+    await _loadLevel();
+  }
+
+  /// Advance to the next level, keeping score and health.
+  Future<void> nextLevel() async {
+    level++;
+    final prevHealth = player.health;
+    final prevAmmo = player.ammo;
+    await _loadLevel();
+    // Carry over health and ammo
+    player.health = prevHealth;
+    player.ammo = prevAmmo;
+  }
+
+  /// Retry the current level (on death with lives remaining).
+  Future<void> retryLevel() async {
+    await _loadLevel();
+  }
+
+  /// Load the current level's map and enemies.
+  Future<void> _loadLevel() async {
+    final difficulty = _difficultyForLevel();
+    final allowedTypes = _enemyTypesForLevel();
+
+    final generator = MazeGenerator(difficulty: difficulty, seed: level * 7);
+    gameMap = generator.generate();
+    player = Player(position: gameMap.playerSpawn);
+
+    // Filter spawns to only use enemy types available at this level
+    enemies = gameMap.enemySpawns.map((s) {
+      final type = allowedTypes.contains(s.type)
+          ? s.type
+          : allowedTypes[s.type.index % allowedTypes.length];
+      return Enemy.spawn(s.position, type, alignment: s.alignment);
+    }).toList();
+
     didWin = false;
     _time = 0;
     _damageIndicators.clear();
@@ -91,6 +146,7 @@ class FpsGame extends FlameGame with KeyboardEvents {
 
     overlays.remove('mainMenu');
     overlays.remove('endgame');
+    overlays.remove('levelSplash');
     overlays.add('hud');
   }
 
@@ -98,6 +154,7 @@ class FpsGame extends FlameGame with KeyboardEvents {
     _isRunning = false;
     didWin = won;
     overlays.remove('hud');
+    overlays.remove('levelSplash');
     overlays.add('endgame');
   }
 
@@ -190,6 +247,7 @@ class FpsGame extends FlameGame with KeyboardEvents {
     // Check death
     if (player.isDead) {
       audio.playDeath();
+      lives--;
       _endGame(won: false);
       return;
     }
@@ -206,7 +264,11 @@ class FpsGame extends FlameGame with KeyboardEvents {
           score += 300;
         }
         audio.playWin();
-        _endGame(won: true);
+        // Show level complete splash, then advance
+        _isRunning = false;
+        didWin = true;
+        overlays.remove('hud');
+        overlays.add('levelSplash');
         return;
       }
     }
