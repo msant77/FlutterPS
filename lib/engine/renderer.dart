@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../entities/enemy.dart';
 import '../world/game_map.dart';
 import 'raycaster.dart';
+import 'sprites.dart';
 import 'textures.dart';
 
 /// Renders the 3D view from raycasting results onto a Canvas.
@@ -454,7 +455,8 @@ class Renderer {
     canvas.drawRect(rect, paint);
   }
 
-  /// Draw an enemy sprite — different shapes/colors per type.
+  /// Draw an enemy sprite — uses pixel-art meme sprites when available,
+  /// falls back to geometric shapes.
   static void drawEnemy({
     required Canvas canvas,
     required Enemy enemy,
@@ -464,7 +466,27 @@ class Renderer {
     required double spriteWidth,
     required double fogFactor,
     required double dist,
+    MemeSprites? sprites,
   }) {
+    // Try sprite-based rendering first
+    if (sprites != null && sprites.isReady) {
+      final spriteFrame = enemy.state == EnemyState.dead
+          ? SpriteFrame.dead
+          : enemy.state == EnemyState.hurt
+              ? SpriteFrame.hurt
+              : SpriteFrame.idle;
+      final image = sprites.getSprite(enemy.type, spriteFrame);
+      if (image != null) {
+        _drawSpriteImage(canvas, image, screenX, screenY, spriteHeight,
+            spriteWidth, fogFactor);
+        // Draw health bar after sprite, then return
+        _drawEnemyHealthBar(canvas, enemy, screenX, screenY, spriteHeight,
+            spriteWidth, fogFactor);
+        return;
+      }
+    }
+
+    // Fallback: geometric shapes
     switch (enemy.type) {
       case EnemyType.grunt:
         _drawGrunt(canvas, enemy, screenX, screenY, spriteHeight, spriteWidth, fogFactor, dist);
@@ -502,6 +524,61 @@ class Renderer {
               .withValues(alpha: fogFactor),
       );
     }
+  }
+
+  /// Draw a pixel-art sprite image as a billboard.
+  static void _drawSpriteImage(Canvas canvas, ui.Image image, double screenX,
+      double screenY, double spriteHeight, double spriteWidth, double fogFactor) {
+    final dstRect = Rect.fromCenter(
+      center: Offset(screenX, screenY + spriteHeight * 0.5),
+      width: spriteWidth * 1.4, // Slightly wider for face visibility
+      height: spriteHeight * 0.9,
+    );
+
+    final srcRect = Rect.fromLTWH(
+      0,
+      0,
+      MemeSprites.size.toDouble(),
+      MemeSprites.size.toDouble(),
+    );
+
+    // Apply fog via color filter
+    final brightness = (fogFactor * 255).round().clamp(0, 255);
+    final paint = Paint()
+      ..filterQuality = FilterQuality.none // Pixel-art look
+      ..colorFilter = ColorFilter.mode(
+        Color.fromARGB(255 - brightness, 10, 10, 10),
+        BlendMode.srcATop,
+      );
+
+    canvas.drawImageRect(image, srcRect, dstRect, paint);
+  }
+
+  /// Draw the health bar for an enemy (extracted for reuse).
+  static void _drawEnemyHealthBar(Canvas canvas, Enemy enemy, double screenX,
+      double screenY, double spriteHeight, double spriteWidth, double fogFactor) {
+    if (enemy.healthPercent >= 1.0) return;
+    final barWidth = spriteWidth * 0.6;
+    final barY = screenY + spriteHeight * 0.15;
+    canvas.drawRect(
+      Rect.fromCenter(center: Offset(screenX, barY), width: barWidth, height: 3),
+      Paint()..color = Colors.black.withValues(alpha: 0.5 * fogFactor),
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(
+        screenX - barWidth / 2,
+        barY - 1.5,
+        barWidth * enemy.healthPercent,
+        3,
+      ),
+      Paint()
+        ..color = Color.lerp(
+          Colors.red,
+          Colors.greenAccent,
+          enemy.healthPercent,
+        )!
+            .withValues(alpha: fogFactor),
+    );
   }
 
   static void _drawGrunt(Canvas canvas, Enemy enemy, double sx, double sy,

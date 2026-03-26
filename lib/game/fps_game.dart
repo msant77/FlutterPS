@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../engine/raycaster.dart';
 import '../engine/renderer.dart';
+import '../engine/sprites.dart';
 import '../engine/textures.dart';
 import '../entities/enemy.dart';
 import '../entities/player.dart';
@@ -17,6 +18,7 @@ class FpsGame extends FlameGame with KeyboardEvents {
   late Player player;
   late List<Enemy> enemies;
   final WallTextures textures = WallTextures();
+  final MemeSprites sprites = MemeSprites();
 
   bool _isRunning = false;
   bool _showMinimap = true;
@@ -61,6 +63,9 @@ class FpsGame extends FlameGame with KeyboardEvents {
   Future<void> startGame() async {
     if (!textures.isReady) {
       await textures.generate();
+    }
+    if (!sprites.isReady) {
+      await sprites.generate();
     }
 
     final generator = MazeGenerator(difficulty: MazeDifficulty.medium);
@@ -629,6 +634,7 @@ class FpsGame extends FlameGame with KeyboardEvents {
       spriteWidth: spriteWidth,
       fogFactor: fogFactor,
       dist: dist,
+      sprites: sprites.isReady ? sprites : null,
     );
   }
 }
