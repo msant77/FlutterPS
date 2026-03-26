@@ -21,7 +21,8 @@ class MainMenuOverlay extends StatelessWidget {
         ),
       ),
       child: Center(
-        child: Column(
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Title
@@ -109,6 +110,7 @@ class MainMenuOverlay extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

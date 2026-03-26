@@ -79,13 +79,18 @@ class FpsGame extends FlameGame with KeyboardEvents {
   List<EnemyType> _enemyTypesForLevel() {
     switch (level) {
       case 1:
-        return [EnemyType.grunt]; // Learn the basics
+        return [EnemyType.grunt];
       case 2:
-        return [EnemyType.grunt, EnemyType.imp]; // Add speed
+        return [EnemyType.grunt, EnemyType.imp];
       case 3:
-        return [EnemyType.grunt, EnemyType.imp, EnemyType.sentinel]; // Add ranged
+        return [EnemyType.grunt, EnemyType.imp, EnemyType.sentinel, EnemyType.sage];
+      case 4:
+        return [EnemyType.grunt, EnemyType.imp, EnemyType.sentinel, EnemyType.zoomer, EnemyType.sage];
+      case 5:
+        return [EnemyType.grunt, EnemyType.imp, EnemyType.sentinel, EnemyType.zoomer,
+                EnemyType.brute, EnemyType.swarm, EnemyType.healer, EnemyType.sage];
       default:
-        return EnemyType.values.toList(); // Everything including brutes
+        return EnemyType.values.toList(); // Everything including boss and trickster
     }
   }
 
@@ -194,6 +199,22 @@ class FpsGame extends FlameGame with KeyboardEvents {
           angle: enemyAngle - player.angle,
           timer: 1.0,
         ));
+      }
+    }
+
+    // Healer enemies heal nearby hostiles
+    for (final healer in enemies) {
+      if (healer.type != EnemyType.healer || healer.isDead) continue;
+      if (healer.alignment != EnemyAlignment.hostile) continue;
+      if (!healer.canHeal()) continue;
+      for (final ally in enemies) {
+        if (ally == healer || ally.isDead) continue;
+        if (ally.alignment != EnemyAlignment.hostile) continue;
+        if (ally.healthPercent >= 1.0) continue;
+        if (healer.distanceTo(ally.position) < 5.0) {
+          ally.receiveHeal(15);
+          break; // Heal one ally per cooldown
+        }
       }
     }
 
@@ -398,6 +419,10 @@ class FpsGame extends FlameGame with KeyboardEvents {
           }
         } else {
           audio.playEnemyHurt(enemy.type);
+          // Trickster teleports when hit
+          if (enemy.type == EnemyType.trickster) {
+            enemy.tryTeleport(gameMap);
+          }
         }
         break; // Hit one enemy per shot
       }

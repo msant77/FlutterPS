@@ -64,6 +64,18 @@ class MemeSprites {
         return _generateGrumpyCat(frame);
       case EnemyType.sentinel:
         return _generateStonksMan(frame);
+      case EnemyType.zoomer:
+        return _generateDistractedBF(frame);
+      case EnemyType.swarm:
+        return _generateThisIsFine(frame);
+      case EnemyType.healer:
+        return _generateHarold(frame);
+      case EnemyType.boss:
+        return _generateGigaChad(frame);
+      case EnemyType.trickster:
+        return _generateRickAstley(frame);
+      case EnemyType.sage:
+        return _generateRarePepe(frame);
     }
   }
 
@@ -497,5 +509,367 @@ class MemeSprites {
     }
 
     return pixels;
+  }
+
+  // ── Distracted Boyfriend (zoomer) ──────────────────────────────
+
+  static Uint32List _generateDistractedBF(SpriteFrame frame) {
+    final pixels = Uint32List(size * size);
+    pixels.fillRange(0, pixels.length, _transparent);
+
+    final skin = _rgba(220, 185, 150);
+    final shirt = _rgba(200, 60, 60); // Red shirt
+    final hair = _rgba(60, 40, 20);
+    final outline = _rgba(30, 25, 20);
+    final eye = _rgba(30, 30, 30);
+
+    if (frame == SpriteFrame.dead) {
+      _fillOval(pixels, 32, 36, 18, 14, skin);
+      _applyXEyes(pixels, eye);
+      return pixels;
+    }
+
+    // Head — looking sideways (the distracted turn)
+    _fillOval(pixels, 34, 22, 14, 14, outline);
+    _fillOval(pixels, 34, 22, 12, 12, skin);
+
+    // Hair — swept to one side
+    _fillOval(pixels, 30, 14, 14, 6, hair);
+
+    // Eyes — one wide, one squinting (the double-take)
+    _fillCircle(pixels, 28, 20, 3, _rgba(255, 255, 255));
+    _fillCircle(pixels, 28, 20, 1, eye);
+    _fillRect(pixels, 36, 19, 6, 2, eye); // Squinting eye
+
+    // Surprised open mouth
+    _fillOval(pixels, 32, 30, 4, 3, _rgba(40, 20, 20));
+
+    // Red shirt body
+    _fillRect(pixels, 18, 36, 28, 20, shirt);
+    // Neck
+    _fillRect(pixels, 28, 32, 8, 5, skin);
+
+    _applyHurtTint(pixels, frame, skin, _rgba(240, 170, 150));
+    return pixels;
+  }
+
+  // ── This Is Fine Dog (swarm) ───────────────────────────────────
+
+  static Uint32List _generateThisIsFine(SpriteFrame frame) {
+    final pixels = Uint32List(size * size);
+    pixels.fillRange(0, pixels.length, _transparent);
+
+    final fur = _rgba(220, 190, 100);
+    final outline = _rgba(50, 40, 20);
+    final eye = _rgba(20, 20, 20);
+    final fire = _rgba(255, 120, 20);
+    final fireGlow = _rgba(255, 200, 40);
+
+    if (frame == SpriteFrame.dead) {
+      // Explosion!
+      _fillCircle(pixels, 32, 32, 20, fire);
+      _fillCircle(pixels, 32, 32, 14, fireGlow);
+      _fillCircle(pixels, 32, 32, 6, _rgba(255, 255, 200));
+      return pixels;
+    }
+
+    // Flames around the dog
+    for (int i = 0; i < 8; i++) {
+      final fx = 10 + (i * 7);
+      final fy = 10 + (i % 3) * 5;
+      _fillOval(pixels, fx, fy, 4, 8, fire);
+      _fillOval(pixels, fx, fy + 2, 2, 4, fireGlow);
+    }
+
+    // Dog face — simple round
+    _fillCircle(pixels, 32, 34, 16, outline);
+    _fillCircle(pixels, 32, 34, 14, fur);
+
+    // Floppy ears
+    _fillOval(pixels, 14, 30, 6, 10, fur);
+    _fillOval(pixels, 50, 30, 6, 10, fur);
+
+    // Calm eyes (this is fine...)
+    _fillCircle(pixels, 26, 30, 3, _rgba(255, 255, 255));
+    _fillCircle(pixels, 38, 30, 3, _rgba(255, 255, 255));
+    _fillCircle(pixels, 26, 30, 1, eye);
+    _fillCircle(pixels, 38, 30, 1, eye);
+
+    // Content smile
+    for (int x = 26; x < 38; x++) {
+      final dx = (x - 32).toDouble();
+      final cy = (40 + (dx * dx * 0.03)).round();
+      _setPixel(pixels, x, cy, outline);
+    }
+
+    // Nose
+    _fillOval(pixels, 32, 37, 2, 2, _rgba(40, 30, 25));
+
+    _applyHurtTint(pixels, frame, fur, _rgba(240, 170, 100));
+    return pixels;
+  }
+
+  // ── Hide the Pain Harold (healer) ──────────────────────────────
+
+  static Uint32List _generateHarold(SpriteFrame frame) {
+    final pixels = Uint32List(size * size);
+    pixels.fillRange(0, pixels.length, _transparent);
+
+    final skin = _rgba(220, 190, 160);
+    final hair = _rgba(180, 180, 180); // Grey hair
+    final outline = _rgba(40, 35, 30);
+    final eye = _rgba(40, 60, 100); // Blue eyes
+    final teeth = _rgba(240, 240, 235);
+
+    if (frame == SpriteFrame.dead) {
+      _fillOval(pixels, 32, 36, 18, 14, skin);
+      _applyXEyes(pixels, outline);
+      // Finally at peace — closed smile
+      for (int x = 24; x < 40; x++) {
+        _setPixel(pixels, x, 44, outline);
+      }
+      return pixels;
+    }
+
+    // Head
+    _fillOval(pixels, 32, 28, 18, 18, outline);
+    _fillOval(pixels, 32, 28, 16, 16, skin);
+
+    // Grey hair — receding
+    _fillOval(pixels, 32, 16, 16, 8, hair);
+    // Forehead wrinkles
+    for (int i = 0; i < 3; i++) {
+      _fillRect(pixels, 20, 18 + i * 3, 24, 1, _rgba(190, 160, 130));
+    }
+
+    // Eyes — the pain behind the smile
+    _fillCircle(pixels, 24, 26, 3, _rgba(255, 255, 255));
+    _fillCircle(pixels, 40, 26, 3, _rgba(255, 255, 255));
+    _fillCircle(pixels, 24, 26, 2, eye);
+    _fillCircle(pixels, 40, 26, 2, eye);
+    // Slight eyebrow raise (trying to look happy)
+    _fillRect(pixels, 19, 21, 12, 2, _rgba(140, 120, 100));
+    _fillRect(pixels, 33, 21, 12, 2, _rgba(140, 120, 100));
+
+    // THE SMILE — forced, wide, showing teeth
+    _fillRect(pixels, 20, 36, 24, 6, teeth);
+    // Lip outline
+    for (int x = 20; x < 44; x++) {
+      _setPixel(pixels, x, 35, outline);
+      _setPixel(pixels, x, 42, outline);
+    }
+    _setPixel(pixels, 19, 36, outline);
+    _setPixel(pixels, 44, 36, outline);
+
+    // Healing cross (green) on chest
+    final healGreen = _rgba(60, 200, 100);
+    _fillRect(pixels, 28, 48, 8, 3, healGreen);
+    _fillRect(pixels, 30, 46, 4, 7, healGreen);
+
+    _applyHurtTint(pixels, frame, skin, _rgba(240, 170, 155));
+    return pixels;
+  }
+
+  // ── GigaChad (boss) ────────────────────────────────────────────
+
+  static Uint32List _generateGigaChad(SpriteFrame frame) {
+    final pixels = Uint32List(size * size);
+    pixels.fillRange(0, pixels.length, _transparent);
+
+    final skin = _rgba(180, 150, 120);
+    final hair = _rgba(20, 15, 10);
+    final outline = _rgba(15, 10, 5);
+    final eye = _rgba(30, 30, 30);
+
+    if (frame == SpriteFrame.dead) {
+      _fillOval(pixels, 32, 36, 20, 16, skin);
+      _applyXEyes(pixels, eye);
+      return pixels;
+    }
+
+    // Massive square jaw
+    _fillRect(pixels, 10, 12, 44, 44, outline);
+    _fillRect(pixels, 12, 14, 40, 40, skin);
+
+    // Strong jawline — darker at edges
+    _fillRect(pixels, 10, 44, 44, 8, _rgba(140, 110, 80));
+    _fillRect(pixels, 12, 44, 40, 6, skin);
+
+    // Hair — short, dark
+    _fillRect(pixels, 10, 8, 44, 10, hair);
+
+    // Intense eyes — deep set
+    _fillRect(pixels, 18, 24, 10, 5, _rgba(255, 255, 255));
+    _fillRect(pixels, 36, 24, 10, 5, _rgba(255, 255, 255));
+    _fillCircle(pixels, 23, 26, 2, eye);
+    _fillCircle(pixels, 41, 26, 2, eye);
+
+    // Strong brow ridge
+    _fillRect(pixels, 16, 20, 14, 3, _rgba(140, 110, 80));
+    _fillRect(pixels, 34, 20, 14, 3, _rgba(140, 110, 80));
+
+    // Confident smirk
+    for (int x = 22; x < 42; x++) {
+      final dx = (x - 32).toDouble();
+      final cy = (40 + (dx * dx * 0.01)).round();
+      _setPixel(pixels, x, cy, outline);
+      _setPixel(pixels, x, cy + 1, outline);
+    }
+
+    // Thick neck
+    _fillRect(pixels, 20, 52, 24, 10, skin);
+    // Shirt collar
+    _fillRect(pixels, 14, 56, 36, 8, _rgba(30, 30, 30));
+
+    _applyHurtTint(pixels, frame, skin, _rgba(220, 140, 120));
+    return pixels;
+  }
+
+  // ── Rick Astley (trickster) ────────────────────────────────────
+
+  static Uint32List _generateRickAstley(SpriteFrame frame) {
+    final pixels = Uint32List(size * size);
+    pixels.fillRange(0, pixels.length, _transparent);
+
+    final skin = _rgba(230, 195, 165);
+    final hair = _rgba(160, 80, 30); // Auburn
+    final outline = _rgba(40, 30, 20);
+    final eye = _rgba(40, 50, 70);
+    final jacket = _rgba(50, 50, 50); // Dark jacket
+
+    if (frame == SpriteFrame.dead) {
+      _fillOval(pixels, 32, 36, 18, 14, skin);
+      _applyXEyes(pixels, outline);
+      // Musical notes fading
+      _setPixel(pixels, 14, 20, outline);
+      _setPixel(pixels, 16, 18, outline);
+      _setPixel(pixels, 50, 22, outline);
+      _setPixel(pixels, 48, 20, outline);
+      return pixels;
+    }
+
+    // Head
+    _fillOval(pixels, 32, 24, 14, 16, outline);
+    _fillOval(pixels, 32, 24, 12, 14, skin);
+
+    // Signature fluffy hair
+    _fillOval(pixels, 32, 12, 14, 8, hair);
+    _fillOval(pixels, 22, 16, 6, 6, hair);
+    _fillOval(pixels, 42, 16, 6, 6, hair);
+
+    // Eyes
+    _fillCircle(pixels, 26, 22, 3, _rgba(255, 255, 255));
+    _fillCircle(pixels, 38, 22, 3, _rgba(255, 255, 255));
+    _fillCircle(pixels, 26, 22, 1, eye);
+    _fillCircle(pixels, 38, 22, 1, eye);
+
+    // Friendly smile
+    for (int x = 26; x < 38; x++) {
+      final dx = (x - 32).toDouble();
+      final cy = (30 + (dx * dx * 0.04)).round();
+      _setPixel(pixels, x, cy, outline);
+    }
+
+    // Dark jacket body
+    _fillRect(pixels, 16, 38, 32, 20, jacket);
+    // Neck
+    _fillRect(pixels, 26, 34, 12, 5, skin);
+    // White shirt collar
+    _fillRect(pixels, 24, 38, 16, 3, _rgba(230, 230, 230));
+
+    // Musical notes floating around (the rickroll hint)
+    final noteColor = _rgba(255, 200, 50);
+    _fillRect(pixels, 8, 16, 2, 6, noteColor);
+    _fillCircle(pixels, 8, 22, 2, noteColor);
+    _fillRect(pixels, 54, 20, 2, 6, noteColor);
+    _fillCircle(pixels, 54, 26, 2, noteColor);
+
+    _applyHurtTint(pixels, frame, skin, _rgba(240, 175, 155));
+    return pixels;
+  }
+
+  // ── Rare Pepe (sage) ───────────────────────────────────────────
+
+  static Uint32List _generateRarePepe(SpriteFrame frame) {
+    final pixels = Uint32List(size * size);
+    pixels.fillRange(0, pixels.length, _transparent);
+
+    final green = _rgba(100, 180, 80);
+    final darkGreen = _rgba(60, 130, 50);
+    final lightGreen = _rgba(140, 210, 120);
+    final outline = _rgba(30, 60, 20);
+    final eye = _rgba(20, 20, 20);
+    final lip = _rgba(180, 50, 50);
+
+    if (frame == SpriteFrame.dead) {
+      _fillOval(pixels, 32, 36, 20, 16, green);
+      _applyXEyes(pixels, eye);
+      // Single tear
+      _fillRect(pixels, 24, 38, 2, 6, _rgba(100, 150, 255));
+      return pixels;
+    }
+
+    // Frog face — wide and round
+    _fillOval(pixels, 32, 32, 26, 22, outline);
+    _fillOval(pixels, 32, 32, 24, 20, green);
+
+    // Lighter chin/belly
+    _fillOval(pixels, 32, 40, 16, 10, lightGreen);
+
+    // Big bulging eyes
+    _fillCircle(pixels, 20, 22, 8, _rgba(255, 255, 255));
+    _fillCircle(pixels, 44, 22, 8, _rgba(255, 255, 255));
+    _fillCircle(pixels, 20, 22, 7, lightGreen);
+    _fillCircle(pixels, 44, 22, 7, lightGreen);
+    // Eyelids (smugness)
+    _fillRect(pixels, 12, 16, 18, 6, darkGreen);
+    _fillRect(pixels, 36, 16, 18, 6, darkGreen);
+    // Pupils
+    _fillCircle(pixels, 22, 24, 2, eye);
+    _fillCircle(pixels, 42, 24, 2, eye);
+
+    // Smug smile
+    _fillRect(pixels, 18, 40, 28, 3, lip);
+    for (int x = 18; x < 46; x++) {
+      _setPixel(pixels, x, 39, outline);
+      _setPixel(pixels, x, 43, outline);
+    }
+
+    // Crown (rare!)
+    final gold = _rgba(255, 215, 0);
+    _fillRect(pixels, 18, 6, 28, 4, gold);
+    for (int i = 0; i < 5; i++) {
+      _fillRect(pixels, 20 + i * 6, 2, 3, 4, gold);
+    }
+
+    if (frame == SpriteFrame.hurt) {
+      // Sad Pepe — add tears
+      _fillRect(pixels, 18, 28, 2, 8, _rgba(100, 150, 255));
+      _fillRect(pixels, 44, 28, 2, 8, _rgba(100, 150, 255));
+      _applyHurtTint(pixels, frame, green, _rgba(160, 200, 140));
+    }
+
+    return pixels;
+  }
+
+  // ── Shared helpers ─────────────────────────────────────────────
+
+  static void _applyXEyes(Uint32List pixels, int color) {
+    for (int i = -3; i <= 3; i++) {
+      _setPixel(pixels, 22 + i, 32 + i, color);
+      _setPixel(pixels, 22 + i, 38 - i, color);
+      _setPixel(pixels, 42 + i, 32 + i, color);
+      _setPixel(pixels, 42 + i, 38 - i, color);
+    }
+  }
+
+  static void _applyHurtTint(
+      Uint32List pixels, SpriteFrame frame, int fromColor, int toColor) {
+    if (frame != SpriteFrame.hurt) return;
+    for (int i = 0; i < pixels.length; i++) {
+      if (pixels[i] == fromColor) {
+        pixels[i] = toColor;
+      }
+    }
   }
 }

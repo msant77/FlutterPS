@@ -89,6 +89,10 @@ class MazeGenerator {
       EnemyType.imp,
       EnemyType.brute,
       EnemyType.sentinel,
+      EnemyType.zoomer,
+      EnemyType.swarm,
+      EnemyType.healer,
+      EnemyType.trickster,
     ];
 
     // Alignment distribution: ~60% hostile, ~25% friendly, ~15% neutral

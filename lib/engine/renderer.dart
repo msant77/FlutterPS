@@ -380,6 +380,18 @@ class Renderer {
         return const Color(0xFF9933CC);
       case EnemyType.sentinel:
         return const Color(0xFF3399FF);
+      case EnemyType.zoomer:
+        return const Color(0xFFFF3399);
+      case EnemyType.swarm:
+        return const Color(0xFFFF8800);
+      case EnemyType.healer:
+        return const Color(0xFF33CC99);
+      case EnemyType.boss:
+        return const Color(0xFFFFDD00);
+      case EnemyType.trickster:
+        return const Color(0xFFCC66FF);
+      case EnemyType.sage:
+        return const Color(0xFF66FF66);
     }
   }
 
@@ -489,15 +501,21 @@ class Renderer {
       }
     }
 
-    // Fallback: geometric shapes
+    // Fallback: geometric shapes (new types reuse closest visual match)
     switch (enemy.type) {
       case EnemyType.grunt:
+      case EnemyType.healer: // Harold reuses grunt shape
+      case EnemyType.trickster: // Rick reuses grunt shape
         _drawGrunt(canvas, enemy, screenX, screenY, spriteHeight, spriteWidth, fogFactor, dist);
       case EnemyType.imp:
+      case EnemyType.zoomer: // Distracted BF reuses imp shape
+      case EnemyType.swarm: // This Is Fine reuses imp shape
         _drawImp(canvas, enemy, screenX, screenY, spriteHeight, spriteWidth, fogFactor, dist);
       case EnemyType.brute:
+      case EnemyType.boss: // GigaChad reuses brute shape (big)
         _drawBrute(canvas, enemy, screenX, screenY, spriteHeight, spriteWidth, fogFactor, dist);
       case EnemyType.sentinel:
+      case EnemyType.sage: // Rare Pepe reuses sentinel shape (floating)
         _drawSentinel(canvas, enemy, screenX, screenY, spriteHeight, spriteWidth, fogFactor, dist);
     }
 
