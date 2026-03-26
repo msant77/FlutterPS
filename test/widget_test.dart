@@ -436,6 +436,9 @@ void main() {
   });
 
   // ==========================================================================
+  // GameAudio — skipped in unit tests (requires platform channels)
+  // Audio WAV synthesis is tested implicitly via integration tests.
+  // ==========================================================================
   // Raycaster
   // ==========================================================================
   group('Raycaster', () {

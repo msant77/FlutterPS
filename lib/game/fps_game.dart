@@ -4,6 +4,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../engine/audio.dart';
 import '../engine/raycaster.dart';
 import '../engine/renderer.dart';
 import '../engine/sprites.dart';
@@ -19,6 +20,7 @@ class FpsGame extends FlameGame with KeyboardEvents {
   late List<Enemy> enemies;
   final WallTextures textures = WallTextures();
   final MemeSprites sprites = MemeSprites();
+  final GameAudio audio = GameAudio();
 
   bool _isRunning = false;
   bool _showMinimap = true;
@@ -68,6 +70,9 @@ class FpsGame extends FlameGame with KeyboardEvents {
     }
     if (!sprites.isReady) {
       await sprites.generate();
+    }
+    if (!audio.isReady) {
+      await audio.generate();
     }
 
     final generator = MazeGenerator(difficulty: MazeDifficulty.medium);
@@ -122,6 +127,7 @@ class FpsGame extends FlameGame with KeyboardEvents {
       final damage = enemy.tryAttack();
       if (damage > 0) {
         player.takeDamage(damage);
+        audio.playHurt();
         _damageFlash = 0.3;
 
         // Calculate direction damage came from (relative to player facing)
@@ -144,8 +150,10 @@ class FpsGame extends FlameGame with KeyboardEvents {
         // Stonks man gives ammo, others give health
         if (enemy.type == EnemyType.sentinel) {
           player.addAmmo(10);
+          audio.playAmmoPickup();
         } else {
           player.heal(15);
+          audio.playHealthPickup();
         }
         score += 25; // Small bonus for interacting instead of killing
       }
@@ -170,8 +178,18 @@ class FpsGame extends FlameGame with KeyboardEvents {
     // Pickup items
     _checkPickups();
 
+    // Footsteps
+    final isMoving = _keysPressed.contains(LogicalKeyboardKey.keyW) ||
+        _keysPressed.contains(LogicalKeyboardKey.keyS) ||
+        _keysPressed.contains(LogicalKeyboardKey.keyA) ||
+        _keysPressed.contains(LogicalKeyboardKey.keyD) ||
+        _keysPressed.contains(LogicalKeyboardKey.arrowUp) ||
+        _keysPressed.contains(LogicalKeyboardKey.arrowDown);
+    audio.updateFootsteps(dt, isMoving);
+
     // Check death
     if (player.isDead) {
+      audio.playDeath();
       _endGame(won: false);
       return;
     }
@@ -187,6 +205,7 @@ class FpsGame extends FlameGame with KeyboardEvents {
         if (friendlyKills == 0) {
           score += 300;
         }
+        audio.playWin();
         _endGame(won: true);
         return;
       }
@@ -269,14 +288,17 @@ class FpsGame extends FlameGame with KeyboardEvents {
     if (tile == Tile.healthPickup) {
       player.heal(25);
       gameMap.grid[py][px] = Tile.empty;
+      audio.playHealthPickup();
     } else if (tile == Tile.ammoPickup) {
       player.addAmmo(15);
       gameMap.grid[py][px] = Tile.empty;
+      audio.playAmmoPickup();
     }
   }
 
   void _tryShoot() {
     if (!player.shoot()) return;
+    audio.playShoot();
 
     // Simple hitscan — check if any enemy is near the center ray
     final centerRay = Raycaster.castRay(
@@ -306,11 +328,14 @@ class FpsGame extends FlameGame with KeyboardEvents {
         if (enemy.isDead) {
           player.kills++;
           score += enemy.scoreValue;
+          audio.playEnemyDeath(enemy.type, enemy.alignment);
           if (enemy.alignment == EnemyAlignment.hostile) {
             hostileKills++;
           } else {
             friendlyKills++;
           }
+        } else {
+          audio.playEnemyHurt(enemy.type);
         }
         break; // Hit one enemy per shot
       }
