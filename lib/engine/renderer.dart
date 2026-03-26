@@ -307,6 +307,8 @@ class Renderer {
             color = Colors.red;
           case Tile.ammoPickup:
             color = Colors.amber;
+          case Tile.exit:
+            color = Colors.cyanAccent;
           default:
             color = const Color(0xFF222222);
         }

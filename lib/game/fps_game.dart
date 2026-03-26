@@ -10,6 +10,7 @@ import '../engine/textures.dart';
 import '../entities/enemy.dart';
 import '../entities/player.dart';
 import '../world/game_map.dart';
+import '../world/maze_generator.dart';
 
 class FpsGame extends FlameGame with KeyboardEvents {
   late GameMap gameMap;
@@ -53,18 +54,24 @@ class FpsGame extends FlameGame with KeyboardEvents {
   bool get isRunning => _isRunning;
   bool get showMinimap => _showMinimap;
 
+  // Animation timer for effects
+  double _time = 0;
+  double get time => _time;
+
   Future<void> startGame() async {
     if (!textures.isReady) {
       await textures.generate();
     }
 
-    gameMap = GameMap.level1();
+    final generator = MazeGenerator(difficulty: MazeDifficulty.medium);
+    gameMap = generator.generate();
     player = Player(position: gameMap.playerSpawn);
     enemies = gameMap.enemySpawns
         .map((s) => Enemy.spawn(s.position, s.type))
         .toList();
     score = 0;
     didWin = false;
+    _time = 0;
     _damageIndicators.clear();
     _isRunning = true;
 
@@ -96,6 +103,7 @@ class FpsGame extends FlameGame with KeyboardEvents {
     super.update(dt);
     if (!_isRunning) return;
 
+    _time += dt;
     _handleInput(dt);
     player.update(dt);
 
@@ -142,10 +150,16 @@ class FpsGame extends FlameGame with KeyboardEvents {
       return;
     }
 
-    // Check win — all enemies dead
-    if (enemies.every((e) => e.isDead)) {
-      _endGame(won: true);
-      return;
+    // Check win — player reached the exit
+    if (gameMap.exitPosition != null) {
+      final dx = (player.position.dx - gameMap.exitPosition!.dx).abs();
+      final dy = (player.position.dy - gameMap.exitPosition!.dy).abs();
+      if (dx < 0.6 && dy < 0.6) {
+        // Bonus points for remaining health and enemies killed
+        score += player.health.round() * 2;
+        _endGame(won: true);
+        return;
+      }
     }
 
     // Cast rays
@@ -327,8 +341,9 @@ class FpsGame extends FlameGame with KeyboardEvents {
       textures: textures.isReady ? textures : null,
     );
 
-    // Draw pickups and enemies as sprites (billboard)
+    // Draw world sprites (pickups, exit portal, enemies)
     _renderPickups(canvas);
+    _renderExitPortal(canvas);
     _renderEnemies(canvas);
 
     // Weapon
@@ -463,6 +478,102 @@ class FpsGame extends FlameGame with KeyboardEvents {
           );
         }
       }
+    }
+  }
+
+  void _renderExitPortal(Canvas canvas) {
+    final exitPos = gameMap.exitPosition;
+    if (exitPos == null) return;
+
+    final toExit = exitPos - player.position;
+    final dist = toExit.distance;
+    if (dist > Raycaster.maxRayDistance || dist < 0.3) return;
+
+    final exitAngle = atan2(toExit.dy, toExit.dx);
+    var relAngle = exitAngle - player.angle;
+    while (relAngle > pi) { relAngle -= 2 * pi; }
+    while (relAngle < -pi) { relAngle += 2 * pi; }
+    if (relAngle.abs() > Player.fov / 2 + 0.1) return;
+
+    // Wall occlusion
+    final ray = Raycaster.castRay(gameMap, player.position, exitAngle);
+    if (ray.distance < dist - 0.3) return;
+
+    final screenX = (0.5 + relAngle / Player.fov) * size.x;
+    final spriteHeight = size.y / dist;
+    final screenY = size.y / 2 - spriteHeight / 2 + player.bobOffset;
+    final fogFactor = (1.0 - dist / Raycaster.maxRayDistance).clamp(0.0, 1.0);
+
+    // Pulsing glow
+    final pulse = (sin(_time * 3) * 0.3 + 0.7).clamp(0.4, 1.0);
+    final portalColor = Color.lerp(
+      const Color(0xFF0a0a0a),
+      Colors.cyanAccent,
+      fogFactor * pulse,
+    )!;
+
+    // Outer glow
+    canvas.drawCircle(
+      Offset(screenX, screenY + spriteHeight * 0.5),
+      spriteHeight * 0.5,
+      Paint()
+        ..color = portalColor.withValues(alpha: 0.2 * fogFactor)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20),
+    );
+
+    // Portal ring
+    canvas.drawCircle(
+      Offset(screenX, screenY + spriteHeight * 0.5),
+      spriteHeight * 0.35,
+      Paint()
+        ..color = portalColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = max(2, spriteHeight * 0.06),
+    );
+
+    // Inner swirl (rotating lines)
+    for (int i = 0; i < 4; i++) {
+      final a = _time * 2 + i * pi / 2;
+      final r = spriteHeight * 0.2;
+      final cx = screenX;
+      final cy = screenY + spriteHeight * 0.5;
+      canvas.drawLine(
+        Offset(cx + cos(a) * r * 0.3, cy + sin(a) * r * 0.3),
+        Offset(cx + cos(a) * r, cy + sin(a) * r),
+        Paint()
+          ..color = portalColor.withValues(alpha: 0.6 * fogFactor)
+          ..strokeWidth = max(1, spriteHeight * 0.03)
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+
+    // Center bright spot
+    canvas.drawCircle(
+      Offset(screenX, screenY + spriteHeight * 0.5),
+      spriteHeight * 0.08,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.7 * fogFactor * pulse)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+
+    // "EXIT" text rendered as a small label above the portal (close range)
+    if (dist < 6) {
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: 'EXIT',
+          style: TextStyle(
+            color: portalColor.withValues(alpha: fogFactor),
+            fontSize: max(10, spriteHeight * 0.12),
+            fontWeight: FontWeight.bold,
+            letterSpacing: 4,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      textPainter.paint(
+        canvas,
+        Offset(screenX - textPainter.width / 2, screenY + spriteHeight * 0.12),
+      );
     }
   }
 
