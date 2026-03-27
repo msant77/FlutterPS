@@ -91,7 +91,7 @@ class _BestiaryOverlayState extends State<BestiaryOverlay> {
                     ),
             ),
 
-            // Controls section
+            // How to play + Controls
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
               padding: const EdgeInsets.all(16),
@@ -105,7 +105,7 @@ class _BestiaryOverlayState extends State<BestiaryOverlay> {
               child: Column(
                 children: [
                   Text(
-                    'CONTROLS',
+                    'HOW TO PLAY',
                     style: TextStyle(
                       color: Colors.grey.shade400,
                       fontSize: 12,
@@ -114,6 +114,19 @@ class _BestiaryOverlayState extends State<BestiaryOverlay> {
                     ),
                   ),
                   const SizedBox(height: 8),
+                  Text(
+                    'You spawn in a safe room with two doors. '
+                    'Enter the maze, find the purple UNLOCK beacon to open the '
+                    'exit, then return to the starting room to escape. '
+                    'Pick up medkits for health and ammo crates for bullets.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

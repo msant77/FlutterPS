@@ -168,6 +168,8 @@ class Renderer {
         return textures.mossTexture;
       case Tile.door:
         return textures.metalDoorTexture;
+      case Tile.lockedDoor:
+        return textures.lockedDoorTexture;
       default:
         return textures.stoneTexture;
     }
@@ -181,6 +183,8 @@ class Renderer {
         return const Color(0xFF4a6741);
       case Tile.door:
         return const Color(0xFF4169E1);
+      case Tile.lockedDoor:
+        return const Color(0xFF8B2020);
       default:
         return const Color(0xFF808080);
     }
@@ -304,12 +308,18 @@ class Renderer {
             color = const Color(0xFF8B4513);
           case Tile.wallAlt:
             color = const Color(0xFF4a6741);
+          case Tile.lockedDoor:
+            color = const Color(0xFF8B2020);
+          case Tile.door:
+            color = const Color(0xFF4169E1);
           case Tile.healthPickup:
             color = Colors.red;
           case Tile.ammoPickup:
             color = Colors.amber;
           case Tile.exit:
             color = Colors.cyanAccent;
+          case Tile.mazeGoal:
+            color = Colors.purpleAccent;
           default:
             color = const Color(0xFF222222);
         }

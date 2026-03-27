@@ -408,6 +408,57 @@ void main() {
       expect(healthCount, greaterThan(0));
       expect(ammoCount, greaterThan(0));
     });
+
+    test('has starting room with spawn inside', () {
+      final gen = MazeGenerator(difficulty: MazeDifficulty.small, seed: 42);
+      final map = gen.generate();
+      // Spawn should be in the lower portion (starting room area)
+      final spawnX = map.playerSpawn.dx.floor();
+      final spawnY = map.playerSpawn.dy.floor();
+      expect(map.isSolid(spawnX, spawnY), isFalse);
+      // Starting room is below the maze, so spawn Y should be large
+      expect(spawnY, greaterThan(map.height ~/ 2));
+    });
+
+    test('has maze goal tile', () {
+      final gen = MazeGenerator(difficulty: MazeDifficulty.small, seed: 42);
+      final map = gen.generate();
+      expect(map.mazeGoalPosition, isNotNull);
+      final gx = map.mazeGoalPosition!.dx.floor();
+      final gy = map.mazeGoalPosition!.dy.floor();
+      expect(map.isSolid(gx, gy), isFalse);
+    });
+
+    test('has locked door that blocks movement', () {
+      final gen = MazeGenerator(difficulty: MazeDifficulty.small, seed: 42);
+      final map = gen.generate();
+      // Find the locked door tile
+      bool foundLocked = false;
+      for (int y = 0; y < map.height; y++) {
+        for (int x = 0; x < map.width; x++) {
+          if (map.grid[y][x] == Tile.lockedDoor) {
+            expect(map.isSolid(x, y), isTrue);
+            expect(map.isWall(x, y), isTrue);
+            foundLocked = true;
+          }
+        }
+      }
+      expect(foundLocked, isTrue);
+    });
+
+    test('unlockExit converts locked doors to open doors', () {
+      final gen = MazeGenerator(difficulty: MazeDifficulty.small, seed: 42);
+      final map = gen.generate();
+      expect(map.exitUnlocked, isFalse);
+      map.unlockExit();
+      expect(map.exitUnlocked, isTrue);
+      // No more locked doors
+      for (int y = 0; y < map.height; y++) {
+        for (int x = 0; x < map.width; x++) {
+          expect(map.grid[y][x], isNot(Tile.lockedDoor));
+        }
+      }
+    });
   });
 
   // ==========================================================================

@@ -8,11 +8,13 @@ enum Tile {
   wall,
   wallAlt,
   door,
+  lockedDoor,
   spawn,
   enemySpawn,
   healthPickup,
   ammoPickup,
   exit,
+  mazeGoal,
 }
 
 /// Spawn point with position, enemy type, and alignment.
@@ -32,7 +34,9 @@ class GameMap {
   final List<List<Tile>> grid;
   Offset playerSpawn;
   Offset? exitPosition;
+  Offset? mazeGoalPosition;
   final List<EnemySpawnPoint> enemySpawns;
+  bool exitUnlocked = false;
 
   GameMap._({
     required this.width,
@@ -40,6 +44,7 @@ class GameMap {
     required this.grid,
     required this.playerSpawn,
     required this.exitPosition,
+    required this.mazeGoalPosition,
     required this.enemySpawns,
   });
 
@@ -50,6 +55,7 @@ class GameMap {
   }) {
     Offset spawn = Offset(width / 2.0, height / 2.0);
     Offset? exit;
+    Offset? goal;
 
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
@@ -57,6 +63,8 @@ class GameMap {
           spawn = Offset(x + 0.5, y + 0.5);
         } else if (grid[y][x] == Tile.exit) {
           exit = Offset(x + 0.5, y + 0.5);
+        } else if (grid[y][x] == Tile.mazeGoal) {
+          goal = Offset(x + 0.5, y + 0.5);
         }
       }
     }
@@ -67,19 +75,33 @@ class GameMap {
       grid: grid,
       playerSpawn: spawn,
       exitPosition: exit,
+      mazeGoalPosition: goal,
       enemySpawns: [],
     );
+  }
+
+  /// Unlock the exit door — converts lockedDoor tiles to door tiles.
+  void unlockExit() {
+    exitUnlocked = true;
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        if (grid[y][x] == Tile.lockedDoor) {
+          grid[y][x] = Tile.door;
+        }
+      }
+    }
   }
 
   bool isWall(int x, int y) {
     if (x < 0 || x >= width || y < 0 || y >= height) return true;
     final tile = grid[y][x];
-    return tile == Tile.wall || tile == Tile.wallAlt;
+    return tile == Tile.wall || tile == Tile.wallAlt || tile == Tile.lockedDoor;
   }
 
   bool isSolid(int x, int y) {
     if (x < 0 || x >= width || y < 0 || y >= height) return true;
-    return grid[y][x] == Tile.wall || grid[y][x] == Tile.wallAlt;
+    final t = grid[y][x];
+    return t == Tile.wall || t == Tile.wallAlt || t == Tile.lockedDoor;
   }
 
   Tile tileAt(int x, int y) {

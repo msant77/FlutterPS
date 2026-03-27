@@ -291,8 +291,18 @@ class FpsGame extends FlameGame with KeyboardEvents {
       return;
     }
 
+    // Check maze goal — unlock exit door when reached
+    if (!gameMap.exitUnlocked && gameMap.mazeGoalPosition != null) {
+      final gx = (player.position.dx - gameMap.mazeGoalPosition!.dx).abs();
+      final gy = (player.position.dy - gameMap.mazeGoalPosition!.dy).abs();
+      if (gx < 0.6 && gy < 0.6) {
+        gameMap.unlockExit();
+        audio.playWin(); // Door unlock sound
+      }
+    }
+
     // Check win — player reached the exit
-    if (gameMap.exitPosition != null) {
+    if (gameMap.exitUnlocked && gameMap.exitPosition != null) {
       final dx = (player.position.dx - gameMap.exitPosition!.dx).abs();
       final dy = (player.position.dy - gameMap.exitPosition!.dy).abs();
       if (dx < 0.6 && dy < 0.6) {
@@ -512,8 +522,9 @@ class FpsGame extends FlameGame with KeyboardEvents {
       textures: textures.isReady ? textures : null,
     );
 
-    // Draw world sprites (pickups, exit portal, enemies)
+    // Draw world sprites (pickups, goal beacon, exit portal, enemies)
     _renderPickups(canvas);
+    _renderMazeGoal(canvas);
     _renderExitPortal(canvas);
     _renderEnemies(canvas);
 
@@ -591,11 +602,6 @@ class FpsGame extends FlameGame with KeyboardEvents {
         final bob = sin(size.x * 0.01 + x * 3.0 + y * 7.0) * spriteHeight * 0.15;
 
         final isHealth = tile == Tile.healthPickup;
-        final color = Color.lerp(
-          const Color(0xFF0a0a0a),
-          isHealth ? Colors.redAccent : Colors.amber,
-          fogFactor,
-        )!;
         final glowColor = (isHealth ? Colors.red : Colors.amber)
             .withValues(alpha: 0.3 * fogFactor);
 
@@ -608,47 +614,202 @@ class FpsGame extends FlameGame with KeyboardEvents {
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
         );
 
+        final center = Offset(screenX, screenY + bob);
+
         if (isHealth) {
-          // Health cross
-          final s = spriteHeight * 0.4;
+          // Medkit — white box with red cross
+          final s = spriteHeight * 0.45;
+          final boxColor = Color.lerp(
+            const Color(0xFF0a0a0a), Colors.white, fogFactor)!;
+          final crossColor = Color.lerp(
+            const Color(0xFF0a0a0a), Colors.redAccent, fogFactor)!;
+          final shadowColor = Color.lerp(
+            const Color(0xFF0a0a0a), const Color(0xFFCCCCCC), fogFactor)!;
+          // Box body
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromCenter(center: center, width: s, height: s * 0.7),
+              Radius.circular(s * 0.08),
+            ),
+            Paint()..color = boxColor,
+          );
+          // Box shadow/depth
+          canvas.drawRect(
+            Rect.fromLTWH(
+              center.dx - s * 0.5, center.dy + s * 0.25,
+              s, s * 0.1,
+            ),
+            Paint()..color = shadowColor,
+          );
+          // Red cross
           canvas.drawRect(
             Rect.fromCenter(
-              center: Offset(screenX, screenY + bob),
-              width: s,
-              height: s * 0.3,
+              center: center,
+              width: s * 0.55, height: s * 0.18,
             ),
-            Paint()..color = color,
+            Paint()..color = crossColor,
           );
           canvas.drawRect(
             Rect.fromCenter(
-              center: Offset(screenX, screenY + bob),
-              width: s * 0.3,
-              height: s,
+              center: center,
+              width: s * 0.18, height: s * 0.55,
             ),
-            Paint()..color = color,
+            Paint()..color = crossColor,
+          );
+          // Latch/clasp
+          canvas.drawRect(
+            Rect.fromCenter(
+              center: Offset(center.dx, center.dy - s * 0.32),
+              width: s * 0.2, height: s * 0.06,
+            ),
+            Paint()..color = Color.lerp(
+              const Color(0xFF0a0a0a), Colors.grey.shade600, fogFactor)!,
           );
         } else {
-          // Ammo box
-          final s = spriteHeight * 0.35;
+          // Ammo crate — olive/green box with "AMMO" stripe
+          final s = spriteHeight * 0.45;
+          final crateColor = Color.lerp(
+            const Color(0xFF0a0a0a), const Color(0xFF6B7C3E), fogFactor)!;
+          final crateLight = Color.lerp(
+            const Color(0xFF0a0a0a), const Color(0xFF8B9C4E), fogFactor)!;
+          final stripeColor = Color.lerp(
+            const Color(0xFF0a0a0a), Colors.amber, fogFactor)!;
+          final metalColor = Color.lerp(
+            const Color(0xFF0a0a0a), const Color(0xFFAAAA88), fogFactor)!;
+          // Crate body
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromCenter(center: center, width: s, height: s * 0.65),
+              Radius.circular(s * 0.05),
+            ),
+            Paint()..color = crateColor,
+          );
+          // Top highlight
+          canvas.drawRect(
+            Rect.fromLTWH(
+              center.dx - s * 0.45, center.dy - s * 0.3,
+              s * 0.9, s * 0.12,
+            ),
+            Paint()..color = crateLight,
+          );
+          // Amber stripe across middle
           canvas.drawRect(
             Rect.fromCenter(
-              center: Offset(screenX, screenY + bob),
-              width: s,
-              height: s * 0.7,
+              center: center,
+              width: s * 0.85, height: s * 0.12,
             ),
-            Paint()..color = color,
+            Paint()..color = stripeColor,
           );
-          // Bullet tips
-          canvas.drawRect(
-            Rect.fromCenter(
-              center: Offset(screenX, screenY + bob - s * 0.25),
-              width: s * 0.6,
-              height: s * 0.15,
-            ),
-            Paint()..color = Color.lerp(const Color(0xFF0a0a0a), Colors.amber.shade200, fogFactor)!,
-          );
+          // Metal clasp corners
+          for (final dx in [-1.0, 1.0]) {
+            canvas.drawRect(
+              Rect.fromCenter(
+                center: Offset(center.dx + dx * s * 0.38, center.dy),
+                width: s * 0.08, height: s * 0.5,
+              ),
+              Paint()..color = metalColor,
+            );
+          }
+          // Bullet tips peeking out top
+          for (int i = -2; i <= 2; i++) {
+            final bulletX = center.dx + i * s * 0.12;
+            final bulletY = center.dy - s * 0.38;
+            canvas.drawRRect(
+              RRect.fromRectAndRadius(
+                Rect.fromCenter(
+                  center: Offset(bulletX, bulletY),
+                  width: s * 0.07, height: s * 0.15,
+                ),
+                Radius.circular(s * 0.03),
+              ),
+              Paint()..color = Color.lerp(
+                const Color(0xFF0a0a0a), const Color(0xFFD4AA44), fogFactor)!,
+            );
+          }
         }
       }
+    }
+  }
+
+  void _renderMazeGoal(Canvas canvas) {
+    if (gameMap.exitUnlocked) return; // Already reached, no need to show
+    final goalPos = gameMap.mazeGoalPosition;
+    if (goalPos == null) return;
+
+    final toGoal = goalPos - player.position;
+    final dist = toGoal.distance;
+    if (dist > Raycaster.maxRayDistance || dist < 0.3) return;
+
+    final goalAngle = atan2(toGoal.dy, toGoal.dx);
+    var relAngle = goalAngle - player.angle;
+    while (relAngle > pi) { relAngle -= 2 * pi; }
+    while (relAngle < -pi) { relAngle += 2 * pi; }
+    if (relAngle.abs() > Player.fov / 2 + 0.1) return;
+
+    final ray = Raycaster.castRay(gameMap, player.position, goalAngle);
+    if (ray.distance < dist - 0.3) return;
+
+    final screenX = (0.5 + relAngle / Player.fov) * size.x;
+    final spriteHeight = size.y / dist;
+    final screenY = size.y / 2 - spriteHeight / 2 + player.bobOffset;
+    final fogFactor = (1.0 - dist / Raycaster.maxRayDistance).clamp(0.0, 1.0);
+
+    // Pulsing purple beacon
+    final pulse = (sin(_time * 4) * 0.3 + 0.7).clamp(0.4, 1.0);
+    final beaconColor = Color.lerp(
+      const Color(0xFF0a0a0a),
+      Colors.purpleAccent,
+      fogFactor * pulse,
+    )!;
+
+    // Vertical beam
+    canvas.drawRect(
+      Rect.fromCenter(
+        center: Offset(screenX, screenY + spriteHeight * 0.3),
+        width: spriteHeight * 0.06,
+        height: spriteHeight * 0.8,
+      ),
+      Paint()
+        ..color = beaconColor.withValues(alpha: 0.4 * fogFactor)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+
+    // Base diamond
+    final diamondPath = Path()
+      ..moveTo(screenX, screenY + spriteHeight * 0.3 - spriteHeight * 0.15)
+      ..lineTo(screenX + spriteHeight * 0.1, screenY + spriteHeight * 0.3)
+      ..lineTo(screenX, screenY + spriteHeight * 0.3 + spriteHeight * 0.15)
+      ..lineTo(screenX - spriteHeight * 0.1, screenY + spriteHeight * 0.3)
+      ..close();
+    canvas.drawPath(diamondPath, Paint()..color = beaconColor);
+
+    // Glow
+    canvas.drawCircle(
+      Offset(screenX, screenY + spriteHeight * 0.3),
+      spriteHeight * 0.2,
+      Paint()
+        ..color = beaconColor.withValues(alpha: 0.2 * fogFactor)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+    );
+
+    // "KEY" label when close
+    if (dist < 6) {
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: 'UNLOCK',
+          style: TextStyle(
+            color: beaconColor.withValues(alpha: fogFactor),
+            fontSize: max(8, spriteHeight * 0.1),
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      textPainter.paint(
+        canvas,
+        Offset(screenX - textPainter.width / 2, screenY + spriteHeight * 0.05),
+      );
     }
   }
 
