@@ -15,7 +15,11 @@ enum SpriteFrame { idle, hurt, dead }
 ///   brute    → Grumpy Cat (grey cat, big frown)
 ///   sentinel → Stonks Man (blue suit, arrow up)
 class MemeSprites {
-  static const int size = 64;
+  /// Output image size (128x128 for crisp rendering).
+  static const int size = 128;
+
+  /// Internal generation size — art is drawn at 64x64 then upscaled 2x.
+  static const int _genSize = 64;
 
   final Map<EnemyType, Map<SpriteFrame, ui.Image>> _sprites = {};
 
@@ -54,29 +58,38 @@ class MemeSprites {
     return frame.image;
   }
 
+  /// Generate sprite at 64x64 then upscale to 128x128 with nearest-neighbor.
   static Uint32List _generateSprite(EnemyType type, SpriteFrame frame) {
-    switch (type) {
-      case EnemyType.grunt:
-        return _generateTrollface(frame);
-      case EnemyType.imp:
-        return _generateDoge(frame);
-      case EnemyType.brute:
-        return _generateGrumpyCat(frame);
-      case EnemyType.sentinel:
-        return _generateStonksMan(frame);
-      case EnemyType.zoomer:
-        return _generateDistractedBF(frame);
-      case EnemyType.swarm:
-        return _generateThisIsFine(frame);
-      case EnemyType.healer:
-        return _generateHarold(frame);
-      case EnemyType.boss:
-        return _generateGigaChad(frame);
-      case EnemyType.trickster:
-        return _generateRickAstley(frame);
-      case EnemyType.sage:
-        return _generateRarePepe(frame);
+    final small = switch (type) {
+      EnemyType.grunt => _generateTrollface(frame),
+      EnemyType.imp => _generateDoge(frame),
+      EnemyType.brute => _generateGrumpyCat(frame),
+      EnemyType.sentinel => _generateStonksMan(frame),
+      EnemyType.zoomer => _generateDistractedBF(frame),
+      EnemyType.swarm => _generateThisIsFine(frame),
+      EnemyType.healer => _generateHarold(frame),
+      EnemyType.boss => _generateGigaChad(frame),
+      EnemyType.trickster => _generateRickAstley(frame),
+      EnemyType.sage => _generateRarePepe(frame),
+    };
+    return _upscale2x(small);
+  }
+
+  /// 2x nearest-neighbor upscale from _genSize to size.
+  static Uint32List _upscale2x(Uint32List src) {
+    final dst = Uint32List(size * size);
+    for (int y = 0; y < _genSize; y++) {
+      for (int x = 0; x < _genSize; x++) {
+        final color = src[y * _genSize + x];
+        final dx = x * 2;
+        final dy = y * 2;
+        dst[dy * size + dx] = color;
+        dst[dy * size + dx + 1] = color;
+        dst[(dy + 1) * size + dx] = color;
+        dst[(dy + 1) * size + dx + 1] = color;
+      }
     }
+    return dst;
   }
 
   /// Pack RGBA into uint32 (little-endian: ABGR).
@@ -87,8 +100,8 @@ class MemeSprites {
   static const int _transparent = 0x00000000;
 
   static void _setPixel(Uint32List pixels, int x, int y, int color) {
-    if (x >= 0 && x < size && y >= 0 && y < size) {
-      pixels[y * size + x] = color;
+    if (x >= 0 && x < _genSize && y >= 0 && y < _genSize) {
+      pixels[y * _genSize + x] = color;
     }
   }
 
@@ -128,7 +141,7 @@ class MemeSprites {
   // ── Trollface (grunt) ──────────────────────────────────────────
 
   static Uint32List _generateTrollface(SpriteFrame frame) {
-    final pixels = Uint32List(size * size);
+    final pixels = Uint32List(_genSize * _genSize);
     pixels.fillRange(0, pixels.length, _transparent);
 
     final white = _rgba(240, 240, 240);
@@ -159,11 +172,11 @@ class MemeSprites {
 
     if (frame == SpriteFrame.hurt) {
       // Hurt tint: reddish overlay
-      for (int y = 0; y < size; y++) {
-        for (int x = 0; x < size; x++) {
-          final c = pixels[y * size + x];
+      for (int y = 0; y < _genSize; y++) {
+        for (int x = 0; x < _genSize; x++) {
+          final c = pixels[y * _genSize + x];
           if (c != _transparent && c != outline && c != eye) {
-            pixels[y * size + x] = _rgba(255, 180, 180);
+            pixels[y * _genSize + x] = _rgba(255, 180, 180);
           }
         }
       }
@@ -197,11 +210,11 @@ class MemeSprites {
 
     if (frame == SpriteFrame.hurt) {
       // Re-apply hurt tint
-      for (int y = 0; y < size; y++) {
-        for (int x = 0; x < size; x++) {
-          final c = pixels[y * size + x];
+      for (int y = 0; y < _genSize; y++) {
+        for (int x = 0; x < _genSize; x++) {
+          final c = pixels[y * _genSize + x];
           if (c == white) {
-            pixels[y * size + x] = _rgba(255, 200, 200);
+            pixels[y * _genSize + x] = _rgba(255, 200, 200);
           }
         }
       }
@@ -213,7 +226,7 @@ class MemeSprites {
   // ── Doge (imp) ─────────────────────────────────────────────────
 
   static Uint32List _generateDoge(SpriteFrame frame) {
-    final pixels = Uint32List(size * size);
+    final pixels = Uint32List(_genSize * _genSize);
     pixels.fillRange(0, pixels.length, _transparent);
 
     final fur = _rgba(220, 180, 80);
@@ -285,11 +298,11 @@ class MemeSprites {
 
     if (frame == SpriteFrame.hurt) {
       // Hurt: reddish tint, squished eyes
-      for (int y = 0; y < size; y++) {
-        for (int x = 0; x < size; x++) {
-          final c = pixels[y * size + x];
+      for (int y = 0; y < _genSize; y++) {
+        for (int x = 0; x < _genSize; x++) {
+          final c = pixels[y * _genSize + x];
           if (c == fur || c == lightFur) {
-            pixels[y * size + x] = _rgba(240, 160, 100);
+            pixels[y * _genSize + x] = _rgba(240, 160, 100);
           }
         }
       }
@@ -306,7 +319,7 @@ class MemeSprites {
   // ── Grumpy Cat (brute) ─────────────────────────────────────────
 
   static Uint32List _generateGrumpyCat(SpriteFrame frame) {
-    final pixels = Uint32List(size * size);
+    final pixels = Uint32List(_genSize * _genSize);
     pixels.fillRange(0, pixels.length, _transparent);
 
     final grey = _rgba(140, 140, 150);
@@ -398,11 +411,11 @@ class MemeSprites {
     _fillOval(pixels, 32, 44, 8, 3, lightGrey);
 
     if (frame == SpriteFrame.hurt) {
-      for (int y = 0; y < size; y++) {
-        for (int x = 0; x < size; x++) {
-          final c = pixels[y * size + x];
+      for (int y = 0; y < _genSize; y++) {
+        for (int x = 0; x < _genSize; x++) {
+          final c = pixels[y * _genSize + x];
           if (c == grey || c == lightGrey) {
-            pixels[y * size + x] = _rgba(220, 170, 170);
+            pixels[y * _genSize + x] = _rgba(220, 170, 170);
           }
         }
       }
@@ -414,7 +427,7 @@ class MemeSprites {
   // ── Stonks Man (sentinel) ──────────────────────────────────────
 
   static Uint32List _generateStonksMan(SpriteFrame frame) {
-    final pixels = Uint32List(size * size);
+    final pixels = Uint32List(_genSize * _genSize);
     pixels.fillRange(0, pixels.length, _transparent);
 
     final suit = _rgba(30, 50, 120);
@@ -496,13 +509,13 @@ class MemeSprites {
 
     if (frame == SpriteFrame.hurt) {
       // Hurt tint — reddish overlay on skin/suit
-      for (int y = 0; y < size; y++) {
-        for (int x = 0; x < size; x++) {
-          final c = pixels[y * size + x];
+      for (int y = 0; y < _genSize; y++) {
+        for (int x = 0; x < _genSize; x++) {
+          final c = pixels[y * _genSize + x];
           if (c == skin) {
-            pixels[y * size + x] = _rgba(240, 170, 150);
+            pixels[y * _genSize + x] = _rgba(240, 170, 150);
           } else if (c == suit) {
-            pixels[y * size + x] = _rgba(80, 50, 120);
+            pixels[y * _genSize + x] = _rgba(80, 50, 120);
           }
         }
       }
@@ -514,7 +527,7 @@ class MemeSprites {
   // ── Distracted Boyfriend (zoomer) ──────────────────────────────
 
   static Uint32List _generateDistractedBF(SpriteFrame frame) {
-    final pixels = Uint32List(size * size);
+    final pixels = Uint32List(_genSize * _genSize);
     pixels.fillRange(0, pixels.length, _transparent);
 
     final skin = _rgba(220, 185, 150);
@@ -556,7 +569,7 @@ class MemeSprites {
   // ── This Is Fine Dog (swarm) ───────────────────────────────────
 
   static Uint32List _generateThisIsFine(SpriteFrame frame) {
-    final pixels = Uint32List(size * size);
+    final pixels = Uint32List(_genSize * _genSize);
     pixels.fillRange(0, pixels.length, _transparent);
 
     final fur = _rgba(220, 190, 100);
@@ -612,7 +625,7 @@ class MemeSprites {
   // ── Hide the Pain Harold (healer) ──────────────────────────────
 
   static Uint32List _generateHarold(SpriteFrame frame) {
-    final pixels = Uint32List(size * size);
+    final pixels = Uint32List(_genSize * _genSize);
     pixels.fillRange(0, pixels.length, _transparent);
 
     final skin = _rgba(220, 190, 160);
@@ -673,7 +686,7 @@ class MemeSprites {
   // ── GigaChad (boss) ────────────────────────────────────────────
 
   static Uint32List _generateGigaChad(SpriteFrame frame) {
-    final pixels = Uint32List(size * size);
+    final pixels = Uint32List(_genSize * _genSize);
     pixels.fillRange(0, pixels.length, _transparent);
 
     final skin = _rgba(180, 150, 120);
@@ -728,7 +741,7 @@ class MemeSprites {
   // ── Rick Astley (trickster) ────────────────────────────────────
 
   static Uint32List _generateRickAstley(SpriteFrame frame) {
-    final pixels = Uint32List(size * size);
+    final pixels = Uint32List(_genSize * _genSize);
     pixels.fillRange(0, pixels.length, _transparent);
 
     final skin = _rgba(230, 195, 165);
@@ -791,7 +804,7 @@ class MemeSprites {
   // ── Rare Pepe (sage) ───────────────────────────────────────────
 
   static Uint32List _generateRarePepe(SpriteFrame frame) {
-    final pixels = Uint32List(size * size);
+    final pixels = Uint32List(_genSize * _genSize);
     pixels.fillRange(0, pixels.length, _transparent);
 
     final green = _rgba(100, 180, 80);
