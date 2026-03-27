@@ -170,6 +170,16 @@ class FpsGame extends FlameGame with KeyboardEvents {
     overlays.add('mainMenu');
   }
 
+  void showBestiary() {
+    overlays.remove('mainMenu');
+    overlays.add('bestiary');
+  }
+
+  void showMainMenu() {
+    overlays.remove('bestiary');
+    overlays.add('mainMenu');
+  }
+
   void toggleMinimap() {
     _showMinimap = !_showMinimap;
   }

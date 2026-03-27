@@ -1,11 +1,49 @@
+import 'dart:math';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
+import '../engine/sprites.dart';
+import '../entities/enemy.dart';
 import '../game/fps_game.dart';
+import 'menu_button.dart';
 
-class MainMenuOverlay extends StatelessWidget {
+class MainMenuOverlay extends StatefulWidget {
   final FpsGame game;
 
   const MainMenuOverlay({super.key, required this.game});
+
+  @override
+  State<MainMenuOverlay> createState() => _MainMenuOverlayState();
+}
+
+class _MainMenuOverlayState extends State<MainMenuOverlay>
+    with SingleTickerProviderStateMixin {
+  bool _spritesReady = false;
+  late final AnimationController _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+    _ensureSprites();
+  }
+
+  Future<void> _ensureSprites() async {
+    if (!widget.game.sprites.isReady) {
+      await widget.game.sprites.generate();
+    }
+    if (mounted) setState(() => _spritesReady = true);
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,6 +54,7 @@ class MainMenuOverlay extends StatelessWidget {
           end: Alignment.bottomCenter,
           colors: [
             Color(0xFF0a0a2e),
+            Color(0xFF12081a),
             Color(0xFF1a0a0a),
           ],
         ),
@@ -23,208 +62,168 @@ class MainMenuOverlay extends StatelessWidget {
       child: Center(
         child: SingleChildScrollView(
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Title
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Colors.redAccent, Colors.amber, Colors.orangeAccent],
-              ).createShader(bounds),
-              child: const Text(
-                'MEMESLAYER',
-                style: TextStyle(
-                  fontSize: 64,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: 6,
-                  height: 1,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Not everything in the maze deserves to die',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w300,
-                fontStyle: FontStyle.italic,
-                color: Colors.grey.shade400,
-                letterSpacing: 2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _memeIcon(Colors.redAccent, 'T'),
-                const SizedBox(width: 8),
-                _memeIcon(Colors.amber, 'D'),
-                const SizedBox(width: 8),
-                _memeIcon(Colors.grey, 'G'),
-                const SizedBox(width: 8),
-                _memeIcon(Colors.blueAccent, 'S'),
-              ],
-            ),
-            const SizedBox(height: 60),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 40),
 
-            // Start button
-            _MenuButton(
-              label: 'START GAME',
-              onPressed: () => game.startGame(),
-              primary: true,
-            ),
-            const SizedBox(height: 16),
-
-            // Controls info
-            Container(
-              padding: const EdgeInsets.all(24),
-              margin: const EdgeInsets.only(top: 40),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.1),
-                ),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    'CONTROLS',
-                    style: TextStyle(
-                      color: Colors.grey.shade400,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 4,
-                    ),
+              // Title
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [
+                    Colors.redAccent,
+                    Colors.amber,
+                    Colors.orangeAccent,
+                  ],
+                ).createShader(bounds),
+                child: const Text(
+                  'MEMESLAYER',
+                  style: TextStyle(
+                    fontSize: 64,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 6,
+                    height: 1,
                   ),
-                  const SizedBox(height: 16),
-                  _controlRow('WASD', 'Move'),
-                  _controlRow('Arrow Keys', 'Turn / Move'),
-                  _controlRow('Space / Click', 'Shoot'),
-                  _controlRow('Q / E', 'Quick Turn'),
-                  _controlRow('Shift', 'Sprint'),
-                  _controlRow('Trackpad', 'Look Around'),
-                  _controlRow('M', 'Toggle Minimap'),
-                  _controlRow('ESC', 'Menu'),
-                ],
+                ),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(height: 12),
+              Text(
+                'Not everything in the maze deserves to die',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w300,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey.shade400,
+                  letterSpacing: 2,
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // Sprite showcase
+              if (_spritesReady) _buildSpriteShowcase(),
+
+              const SizedBox(height: 40),
+
+              // Buttons
+              MenuButton(
+                label: 'START GAME',
+                onPressed: () => widget.game.startGame(),
+                primary: true,
+              ),
+              const SizedBox(height: 12),
+              MenuButton(
+                label: 'BESTIARY',
+                onPressed: () => widget.game.showBestiary(),
+              ),
+
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _memeIcon(Color color, String letter) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Center(
-        child: Text(
-          letter,
-          style: TextStyle(
-            color: color,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Courier',
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _buildSpriteShowcase() {
+    // Featured enemies for the main menu
+    const featured = [
+      (EnemyType.grunt, 'Trollface', Colors.redAccent),
+      (EnemyType.imp, 'Doge', Colors.amber),
+      (EnemyType.brute, 'Grumpy Cat', Colors.blueGrey),
+      (EnemyType.boss, 'GigaChad', Colors.deepPurple),
+      (EnemyType.trickster, 'Rick Astley', Colors.teal),
+      (EnemyType.sage, 'Rare Pepe', Colors.green),
+    ];
 
-  Widget _controlRow(String key, String action) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              key,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: Colors.amber,
-                fontFamily: 'Courier',
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Text(
-            action,
-            style: TextStyle(
-              color: Colors.grey.shade400,
-              fontSize: 14,
-            ),
-          ),
-        ],
+    return SizedBox(
+      height: 130,
+      child: AnimatedBuilder(
+        animation: _anim,
+        builder: (context, _) {
+          return ListView.separated(
+            scrollDirection: Axis.horizontal,
+            shrinkWrap: true,
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            itemCount: featured.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 16),
+            itemBuilder: (context, index) {
+              final (type, name, color) = featured[index];
+              final sprite =
+                  widget.game.sprites.getSprite(type, SpriteFrame.idle);
+              // Staggered floating animation
+              final bobOffset =
+                  sin(_anim.value * 2 * pi + index * 0.8) * 4.0;
+
+              return Transform.translate(
+                offset: Offset(0, bobOffset),
+                child: _SpriteCard(
+                  sprite: sprite,
+                  name: name,
+                  color: color,
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
 }
 
-class _MenuButton extends StatefulWidget {
-  final String label;
-  final VoidCallback onPressed;
-  final bool primary;
+class _SpriteCard extends StatelessWidget {
+  final ui.Image? sprite;
+  final String name;
+  final Color color;
 
-  const _MenuButton({
-    required this.label,
-    required this.onPressed,
-    this.primary = false,
+  const _SpriteCard({
+    required this.sprite,
+    required this.name,
+    required this.color,
   });
 
   @override
-  State<_MenuButton> createState() => _MenuButtonState();
-}
-
-class _MenuButtonState extends State<_MenuButton> {
-  bool _hovering = false;
-
-  @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
-      child: GestureDetector(
-        onTap: widget.onPressed,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 80,
+          height: 80,
           decoration: BoxDecoration(
-            color: _hovering
-                ? (widget.primary ? Colors.redAccent : Colors.white.withValues(alpha: 0.15))
-                : (widget.primary
-                    ? Colors.redAccent.withValues(alpha: 0.8)
-                    : Colors.white.withValues(alpha: 0.05)),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: widget.primary
-                  ? Colors.redAccent
-                  : Colors.white.withValues(alpha: 0.2),
-              width: _hovering ? 2 : 1,
-            ),
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.15),
+                blurRadius: 12,
+                spreadRadius: 1,
+              ),
+            ],
           ),
-          child: Text(
-            widget.label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 4,
-            ),
+          child: sprite != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(11),
+                  child: RawImage(
+                    image: sprite,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.none,
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          name,
+          style: TextStyle(
+            color: color.withValues(alpha: 0.8),
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
           ),
         ),
-      ),
+      ],
     );
   }
 }

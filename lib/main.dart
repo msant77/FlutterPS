@@ -6,6 +6,7 @@ import 'game/fps_game.dart';
 import 'ui/hud_overlay.dart';
 import 'ui/endgame_overlay.dart';
 import 'ui/level_splash_overlay.dart';
+import 'ui/bestiary_overlay.dart';
 import 'ui/main_menu_overlay.dart';
 
 void main() {
@@ -39,6 +40,7 @@ class FpsRaycasterApp extends StatelessWidget {
               overlayBuilderMap: {
                 'hud': (context, game) => HudOverlay(game: game),
                 'mainMenu': (context, game) => MainMenuOverlay(game: game),
+                'bestiary': (context, game) => BestiaryOverlay(game: game),
                 'endgame': (context, game) => EndgameOverlay(game: game),
                 'levelSplash': (context, game) =>
                     LevelSplashOverlay(game: game),
