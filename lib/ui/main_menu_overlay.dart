@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../data/save_service.dart';
 import '../engine/sprites.dart';
 import '../entities/enemy.dart';
 import '../game/fps_game.dart';
@@ -20,6 +21,7 @@ class MainMenuOverlay extends StatefulWidget {
 class _MainMenuOverlayState extends State<MainMenuOverlay>
     with SingleTickerProviderStateMixin {
   bool _spritesReady = false;
+  bool _hasSave = false;
   late final AnimationController _anim;
 
   @override
@@ -30,6 +32,12 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
       duration: const Duration(seconds: 3),
     )..repeat();
     _ensureSprites();
+    _checkSave();
+  }
+
+  Future<void> _checkSave() async {
+    final exists = await SaveService.hasSaveGame();
+    if (mounted) setState(() => _hasSave = exists);
   }
 
   Future<void> _ensureSprites() async {
@@ -106,15 +114,28 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
               const SizedBox(height: 40),
 
               // Buttons
+              if (_hasSave) ...[
+                MenuButton(
+                  label: 'CONTINUE',
+                  onPressed: () => widget.game.continueGame(),
+                  primary: true,
+                ),
+                const SizedBox(height: 12),
+              ],
               MenuButton(
-                label: 'START GAME',
+                label: 'NEW GAME',
                 onPressed: () => widget.game.startGame(),
-                primary: true,
+                primary: !_hasSave,
               ),
               const SizedBox(height: 12),
               MenuButton(
                 label: 'BESTIARY',
                 onPressed: () => widget.game.showBestiary(),
+              ),
+              const SizedBox(height: 12),
+              MenuButton(
+                label: 'HIGH SCORES',
+                onPressed: () => widget.game.showHighScores(),
               ),
 
               const SizedBox(height: 40),

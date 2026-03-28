@@ -12,6 +12,7 @@ import '../engine/textures.dart';
 import '../entities/enemy.dart';
 import '../entities/player.dart';
 import '../world/game_map.dart';
+import '../data/save_service.dart';
 import '../world/maze_generator.dart';
 
 class FpsGame extends FlameGame with KeyboardEvents {
@@ -102,6 +103,7 @@ class FpsGame extends FlameGame with KeyboardEvents {
 
   /// Start a fresh game from level 1.
   Future<void> startGame() async {
+    await SaveService.deleteSave();
     await _ensureAssetsReady();
     level = 1;
     lives = 3;
@@ -109,6 +111,62 @@ class FpsGame extends FlameGame with KeyboardEvents {
     hostileKills = 0;
     friendlyKills = 0;
     await _loadLevel();
+  }
+
+  /// Continue from a saved game.
+  Future<void> continueGame() async {
+    final data = await SaveService.loadGame();
+    if (data == null) return;
+
+    await _ensureAssetsReady();
+
+    score = data.score;
+    level = data.level;
+    lives = data.lives;
+    hostileKills = data.hostileKills;
+    friendlyKills = data.friendlyKills;
+
+    final grid = data.grid
+        .map((row) => row.map(GameMap.tileFromName).toList())
+        .toList();
+    gameMap = GameMap.fromSaveData(
+      width: data.mapWidth,
+      height: data.mapHeight,
+      grid: grid,
+      exitUnlocked: data.exitUnlocked,
+    );
+
+    player = Player(
+      position: Offset(data.playerX, data.playerY),
+      angle: data.playerAngle,
+      health: data.playerHealth,
+      ammo: data.playerAmmo,
+      kills: data.playerKills,
+    );
+
+    enemies = data.enemies
+        .map((e) => Enemy.fromSaveData(
+              position: Offset(e.x, e.y),
+              type: Enemy.typeFromName(e.type),
+              alignment: Enemy.alignmentFromName(e.alignment),
+              health: e.health,
+              maxHealth: e.maxHealth,
+              state: Enemy.stateFromName(e.state),
+              angle: e.angle,
+              hasGivenItem: e.hasGivenItem,
+              hasExploded: e.hasExploded,
+            ))
+        .toList();
+
+    didWin = false;
+    _time = 0;
+    _damageIndicators.clear();
+    _isRunning = true;
+
+    overlays.remove('mainMenu');
+    overlays.remove('endgame');
+    overlays.remove('levelSplash');
+    overlays.add('hud');
   }
 
   /// Advance to the next level, keeping score and health.
@@ -134,7 +192,7 @@ class FpsGame extends FlameGame with KeyboardEvents {
 
     final generator = MazeGenerator(difficulty: difficulty, seed: level * 7);
     gameMap = generator.generate();
-    player = Player(position: gameMap.playerSpawn);
+    player = Player(position: gameMap.playerSpawn, angle: -pi / 2);
 
     // Filter spawns to only use enemy types available at this level
     enemies = gameMap.enemySpawns.map((s) {
@@ -161,6 +219,11 @@ class FpsGame extends FlameGame with KeyboardEvents {
     overlays.remove('hud');
     overlays.remove('levelSplash');
     overlays.add('endgame');
+
+    if (!won && lives <= 0) {
+      recordHighScore();
+      SaveService.deleteSave();
+    }
   }
 
   void returnToMenu() {
@@ -177,7 +240,66 @@ class FpsGame extends FlameGame with KeyboardEvents {
 
   void showMainMenu() {
     overlays.remove('bestiary');
+    overlays.remove('highScores');
     overlays.add('mainMenu');
+  }
+
+  void showHighScores() {
+    overlays.remove('mainMenu');
+    overlays.add('highScores');
+  }
+
+  /// Auto-save current state (called at level transitions).
+  Future<void> autoSave() async {
+    await SaveService.saveGame(_buildSaveData());
+  }
+
+  /// Record current run as a high score entry.
+  Future<void> recordHighScore() async {
+    await SaveService.addHighScore(HighScoreEntry(
+      score: score,
+      levelReached: level,
+      totalKills: hostileKills + friendlyKills,
+      date: DateTime.now().toIso8601String(),
+      innocenceBonus: friendlyKills == 0,
+    ));
+  }
+
+  SaveData _buildSaveData() {
+    return SaveData(
+      score: score,
+      level: level,
+      lives: lives,
+      hostileKills: hostileKills,
+      friendlyKills: friendlyKills,
+      playerX: player.position.dx,
+      playerY: player.position.dy,
+      playerAngle: player.angle,
+      playerHealth: player.health,
+      playerAmmo: player.ammo,
+      playerKills: player.kills,
+      mapWidth: gameMap.width,
+      mapHeight: gameMap.height,
+      grid: gameMap.grid
+          .map((row) => row.map((t) => t.name).toList())
+          .toList(),
+      exitUnlocked: gameMap.exitUnlocked,
+      enemies: enemies
+          .where((e) => e.isAlive)
+          .map((e) => EnemySaveData(
+                x: e.position.dx,
+                y: e.position.dy,
+                health: e.health,
+                maxHealth: e.maxHealth,
+                state: e.state.name,
+                angle: e.angle,
+                type: e.type.name,
+                alignment: e.alignment.name,
+                hasGivenItem: e.hasGivenItem,
+                hasExploded: e.hasExploded,
+              ))
+          .toList(),
+    );
   }
 
   void toggleMinimap() {
@@ -525,6 +647,7 @@ class FpsGame extends FlameGame with KeyboardEvents {
     // Draw world sprites (pickups, goal beacon, exit portal, enemies)
     _renderPickups(canvas);
     _renderMazeGoal(canvas);
+    _renderMazeEntrance(canvas);
     _renderExitPortal(canvas);
     _renderEnemies(canvas);
 
@@ -813,6 +936,74 @@ class FpsGame extends FlameGame with KeyboardEvents {
     }
   }
 
+  /// Renders a glowing "ENTER MAZE" label above the maze entrance door.
+  void _renderMazeEntrance(Canvas canvas) {
+    final entrancePos = gameMap.mazeEntrancePosition;
+    if (entrancePos == null) return;
+
+    final toEntrance = entrancePos - player.position;
+    final dist = toEntrance.distance;
+    if (dist > 10 || dist < 0.3) return;
+
+    final entranceAngle = atan2(toEntrance.dy, toEntrance.dx);
+    var relAngle = entranceAngle - player.angle;
+    while (relAngle > pi) { relAngle -= 2 * pi; }
+    while (relAngle < -pi) { relAngle += 2 * pi; }
+    if (relAngle.abs() > Player.fov / 2 + 0.1) return;
+
+    final ray = Raycaster.castRay(gameMap, player.position, entranceAngle);
+    if (ray.distance < dist - 0.5) return;
+
+    final screenX = (0.5 + relAngle / Player.fov) * size.x;
+    final spriteHeight = size.y / dist;
+    final screenY = size.y / 2 - spriteHeight / 2 + player.bobOffset;
+    final fogFactor = (1.0 - dist / 12).clamp(0.0, 1.0);
+
+    // Glowing green arrow/label
+    final pulse = (sin(_time * 2) * 0.2 + 0.8).clamp(0.5, 1.0);
+    final color = Colors.greenAccent.withValues(alpha: fogFactor * pulse);
+
+    // "ENTER MAZE" label
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: 'ENTER MAZE',
+        style: TextStyle(
+          color: color,
+          fontSize: max(10, spriteHeight * 0.12),
+          fontWeight: FontWeight.bold,
+          letterSpacing: 3,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    textPainter.paint(
+      canvas,
+      Offset(screenX - textPainter.width / 2, screenY + spriteHeight * 0.15),
+    );
+
+    // Small downward arrow
+    final arrowY = screenY + spriteHeight * 0.15 + textPainter.height + 4;
+    final arrowPaint = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(screenX, arrowY),
+      Offset(screenX, arrowY + spriteHeight * 0.1),
+      arrowPaint,
+    );
+    canvas.drawLine(
+      Offset(screenX - 4, arrowY + spriteHeight * 0.06),
+      Offset(screenX, arrowY + spriteHeight * 0.1),
+      arrowPaint,
+    );
+    canvas.drawLine(
+      Offset(screenX + 4, arrowY + spriteHeight * 0.06),
+      Offset(screenX, arrowY + spriteHeight * 0.1),
+      arrowPaint,
+    );
+  }
+
   void _renderExitPortal(Canvas canvas) {
     final exitPos = gameMap.exitPosition;
     if (exitPos == null) return;
@@ -836,11 +1027,12 @@ class FpsGame extends FlameGame with KeyboardEvents {
     final screenY = size.y / 2 - spriteHeight / 2 + player.bobOffset;
     final fogFactor = (1.0 - dist / Raycaster.maxRayDistance).clamp(0.0, 1.0);
 
-    // Pulsing glow
+    // Pulsing glow — red when locked, cyan when unlocked
     final pulse = (sin(_time * 3) * 0.3 + 0.7).clamp(0.4, 1.0);
+    final baseColor = gameMap.exitUnlocked ? Colors.cyanAccent : Colors.redAccent;
     final portalColor = Color.lerp(
       const Color(0xFF0a0a0a),
-      Colors.cyanAccent,
+      baseColor,
       fogFactor * pulse,
     )!;
 
@@ -888,11 +1080,12 @@ class FpsGame extends FlameGame with KeyboardEvents {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
     );
 
-    // "EXIT" text rendered as a small label above the portal (close range)
-    if (dist < 6) {
+    // Label above portal — shows lock status and hint
+    if (dist < 8) {
+      final label = gameMap.exitUnlocked ? 'EXIT' : 'LOCKED';
       final textPainter = TextPainter(
         text: TextSpan(
-          text: 'EXIT',
+          text: label,
           style: TextStyle(
             color: portalColor.withValues(alpha: fogFactor),
             fontSize: max(10, spriteHeight * 0.12),
@@ -906,6 +1099,26 @@ class FpsGame extends FlameGame with KeyboardEvents {
         canvas,
         Offset(screenX - textPainter.width / 2, screenY + spriteHeight * 0.12),
       );
+
+      // Show hint when locked and close
+      if (!gameMap.exitUnlocked && dist < 4) {
+        final hintPainter = TextPainter(
+          text: TextSpan(
+            text: 'Find the beacon in the maze',
+            style: TextStyle(
+              color: Colors.grey.withValues(alpha: 0.7 * fogFactor),
+              fontSize: max(8, spriteHeight * 0.08),
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        hintPainter.paint(
+          canvas,
+          Offset(screenX - hintPainter.width / 2,
+              screenY + spriteHeight * 0.12 + textPainter.height + 2),
+        );
+      }
     }
   }
 

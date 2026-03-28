@@ -16,10 +16,11 @@ class _LevelSplashOverlayState extends State<LevelSplashOverlay> {
   @override
   void initState() {
     super.initState();
-    // Auto-advance after 2 seconds
-    Future.delayed(const Duration(seconds: 2), () {
+    // Auto-advance after 2 seconds, then auto-save
+    Future.delayed(const Duration(seconds: 2), () async {
       if (mounted) {
-        widget.game.nextLevel();
+        await widget.game.nextLevel();
+        await widget.game.autoSave();
       }
     });
   }

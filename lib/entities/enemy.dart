@@ -223,6 +223,41 @@ class Enemy {
     }
   }
 
+  /// Reconstruct an enemy from saved data.
+  /// Uses spawn() for stat defaults, then overwrites mutable fields.
+  factory Enemy.fromSaveData({
+    required Offset position,
+    required EnemyType type,
+    required EnemyAlignment alignment,
+    required double health,
+    required double maxHealth,
+    required EnemyState state,
+    required double angle,
+    required bool hasGivenItem,
+    required bool hasExploded,
+  }) {
+    final e = Enemy.spawn(position, type, alignment: alignment);
+    e.health = health;
+    e.maxHealth = maxHealth;
+    e.state = state;
+    e.angle = angle;
+    e.hasGivenItem = hasGivenItem;
+    e.hasExploded = hasExploded;
+    return e;
+  }
+
+  static EnemyType typeFromName(String name) =>
+      EnemyType.values.firstWhere((t) => t.name == name,
+          orElse: () => EnemyType.grunt);
+
+  static EnemyAlignment alignmentFromName(String name) =>
+      EnemyAlignment.values.firstWhere((a) => a.name == name,
+          orElse: () => EnemyAlignment.hostile);
+
+  static EnemyState stateFromName(String name) =>
+      EnemyState.values.firstWhere((s) => s.name == name,
+          orElse: () => EnemyState.idle);
+
   bool get isDead => state == EnemyState.dead;
   bool get isAlive => !isDead;
   double get healthPercent => health / maxHealth;
