@@ -35,6 +35,7 @@ class GameMap {
   Offset playerSpawn;
   Offset? exitPosition;
   Offset? mazeGoalPosition;
+  Offset? mazeEntrancePosition;
   final List<EnemySpawnPoint> enemySpawns;
   bool exitUnlocked = false;
 
@@ -45,6 +46,7 @@ class GameMap {
     required this.playerSpawn,
     required this.exitPosition,
     required this.mazeGoalPosition,
+    required this.mazeEntrancePosition,
     required this.enemySpawns,
   });
 
@@ -56,6 +58,7 @@ class GameMap {
     Offset spawn = Offset(width / 2.0, height / 2.0);
     Offset? exit;
     Offset? goal;
+    Offset? entrance;
 
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
@@ -65,6 +68,8 @@ class GameMap {
           exit = Offset(x + 0.5, y + 0.5);
         } else if (grid[y][x] == Tile.mazeGoal) {
           goal = Offset(x + 0.5, y + 0.5);
+        } else if (grid[y][x] == Tile.door) {
+          entrance = Offset(x + 0.5, y + 0.5);
         }
       }
     }
@@ -76,9 +81,26 @@ class GameMap {
       playerSpawn: spawn,
       exitPosition: exit,
       mazeGoalPosition: goal,
+      mazeEntrancePosition: entrance,
       enemySpawns: [],
     );
   }
+
+  /// Reconstruct a GameMap from saved grid data (bypasses maze generation).
+  factory GameMap.fromSaveData({
+    required int width,
+    required int height,
+    required List<List<Tile>> grid,
+    required bool exitUnlocked,
+  }) {
+    final map = GameMap(width: width, height: height, grid: grid);
+    if (exitUnlocked) map.unlockExit();
+    return map;
+  }
+
+  /// Convert a tile name string back to a Tile enum value.
+  static Tile tileFromName(String name) =>
+      Tile.values.firstWhere((t) => t.name == name, orElse: () => Tile.empty);
 
   /// Unlock the exit door — converts lockedDoor tiles to door tiles.
   void unlockExit() {

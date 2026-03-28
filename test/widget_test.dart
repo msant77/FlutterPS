@@ -446,6 +446,46 @@ void main() {
       expect(foundLocked, isTrue);
     });
 
+    test('maze entrance door connects to maze passages', () {
+      // Test multiple seeds to ensure consistent connectivity
+      for (final seed in [1, 7, 42, 99, 200]) {
+        final gen = MazeGenerator(difficulty: MazeDifficulty.small, seed: seed);
+        final map = gen.generate();
+
+        // Find the maze entrance door
+        expect(map.mazeEntrancePosition, isNotNull,
+            reason: 'seed $seed: should have maze entrance');
+        final doorX = map.mazeEntrancePosition!.dx.floor();
+        final doorY = map.mazeEntrancePosition!.dy.floor();
+        expect(map.grid[doorY][doorX], equals(Tile.door),
+            reason: 'seed $seed: entrance should be a door tile');
+
+        // Walk north from door — should reach an open maze cell within a few steps
+        bool foundOpen = false;
+        for (int y = doorY - 1; y >= 0 && y > doorY - 6; y--) {
+          final t = map.grid[y][doorX];
+          if (t == Tile.empty || t == Tile.healthPickup || t == Tile.ammoPickup) {
+            foundOpen = true;
+            break;
+          }
+        }
+        expect(foundOpen, isTrue,
+            reason: 'seed $seed: door at ($doorX,$doorY) must connect to maze');
+
+        // Walk south from door — should reach room interior
+        bool foundRoom = false;
+        for (int y = doorY + 1; y < map.height && y < doorY + 4; y++) {
+          final t = map.grid[y][doorX];
+          if (t == Tile.empty || t == Tile.spawn) {
+            foundRoom = true;
+            break;
+          }
+        }
+        expect(foundRoom, isTrue,
+            reason: 'seed $seed: door must connect south to starting room');
+      }
+    });
+
     test('unlockExit converts locked doors to open doors', () {
       final gen = MazeGenerator(difficulty: MazeDifficulty.small, seed: 42);
       final map = gen.generate();

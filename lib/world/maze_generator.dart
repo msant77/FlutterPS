@@ -68,19 +68,55 @@ class MazeGenerator {
     _carveStartingRoom(grid, roomLeft, roomTop, totalW);
 
     // ── Place the maze entrance door (top wall of starting room) ─
-    // Find an open maze cell near the center-bottom of the maze
-    final mazeDoorX = roomLeft + _startRoomW ~/ 2;
-    // The wall row between maze and room
-    final mazeDoorY = mazeH;
-    // Carve a connection: door in the dividing wall, ensure maze side is open
-    grid[mazeDoorY][mazeDoorX] = Tile.door;
-    // Ensure the maze cell above the door is open
-    if (mazeDoorY - 1 >= 0 && grid[mazeDoorY - 1][mazeDoorX] != Tile.empty) {
-      grid[mazeDoorY - 1][mazeDoorX] = Tile.empty;
+    // Find an open maze cell in the bottom rows, closest to room center.
+    // Maze passages live at odd coordinates, so search for the nearest one.
+    final roomCenterX = roomLeft + _startRoomW ~/ 2;
+    final mazeDoorY = mazeH; // The dividing wall row
+
+    // Search bottom rows of maze for an open cell near the room center
+    int mazeDoorX = roomCenterX;
+    int bestConnectDist = 999;
+    for (int y = mazeH - 2; y >= mazeH - 6 && y >= 1; y--) {
+      for (int x = 1; x < mazeW - 1; x++) {
+        if (grid[y][x] == Tile.empty) {
+          final d = (x - roomCenterX).abs();
+          if (d < bestConnectDist) {
+            bestConnectDist = d;
+            mazeDoorX = x;
+          }
+        }
+      }
+      if (bestConnectDist < 3) break; // Close enough
     }
-    // Ensure the room cell below the door is open
+
+    // Place the door on the dividing wall row
+    grid[mazeDoorY][mazeDoorX] = Tile.door;
+
+    // Carve a vertical corridor from the door up into the maze until
+    // we hit an open passage cell
+    for (int y = mazeDoorY - 1; y >= 1; y--) {
+      if (grid[y][mazeDoorX] == Tile.empty) break;
+      grid[y][mazeDoorX] = Tile.empty;
+    }
+
+    // Carve from door down into the room: open the room's top wall row
     if (mazeDoorY + 1 < totalH) {
       grid[mazeDoorY + 1][mazeDoorX] = Tile.empty;
+    }
+
+    // If the door X doesn't match room center, carve a horizontal corridor
+    // along the room's top interior row to connect them
+    final corridorY = roomTop + 1; // First interior row of room
+    final startX = min(mazeDoorX, roomCenterX);
+    final endX = max(mazeDoorX, roomCenterX);
+    for (int x = startX; x <= endX; x++) {
+      if (grid[corridorY][x] == Tile.wall) {
+        grid[corridorY][x] = Tile.empty;
+      }
+      // Also open the wall row above if needed
+      if (grid[roomTop][x] == Tile.wall) {
+        grid[roomTop][x] = Tile.empty;
+      }
     }
 
     // ── Place the locked exit door (opposite wall of starting room) ─
@@ -91,9 +127,10 @@ class MazeGenerator {
     // Place exit tile just inside the door
     grid[exitDoorY - 1][exitDoorX] = Tile.exit;
 
-    // ── Place player spawn in center of starting room ───────────
+    // ── Place player spawn in center-south of starting room ─────
+    // Offset toward the exit door so both doors are visible
     final spawnX = roomLeft + _startRoomW ~/ 2;
-    final spawnY = roomTop + _startRoomH ~/ 2;
+    final spawnY = roomTop + _startRoomH ~/ 2 + 1;
     grid[spawnY][spawnX] = Tile.spawn;
 
     // ── Place maze goal at the far end of the maze ──────────────
